@@ -1,2 +1,3 @@
 # RAG-ENTERPRISE
-Hybird Platform System
+
+نظام ذكاء اصطناعي متكامل
