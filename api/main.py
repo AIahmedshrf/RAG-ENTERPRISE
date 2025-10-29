@@ -92,10 +92,11 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # ===== إضافة Routes =====
-from api.routes import documents, chat
+from api.routes import documents, chat, financial
 
 app.include_router(documents.router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
+app.include_router(financial.router, prefix="/api/v1")
 
 # Routes الأساسية
 @app.get("/")
