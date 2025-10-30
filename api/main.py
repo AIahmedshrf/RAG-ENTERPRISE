@@ -1,140 +1,127 @@
-# api/main.py
 """
-نقطة الدخول الرئيسية لـ FastAPI
+Main FastAPI Application
 """
 
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-import time
+import uvicorn
 
 from core.config import config
-from core.exceptions import RAGEnterpriseException
+from api.database import init_db
 from utilities.logger import logger
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """دورة حياة التطبيق"""
-    # Startup
-    logger.info("🚀 Starting RAG-ENTERPRISE...")
-    logger.info(f"Environment: {config.environment}")
-    logger.info(f"Debug mode: {config.debug}")
-    
-    try:
-        config.validate()
-        logger.info("✅ Configuration validated successfully")
-    except Exception as e:
-        logger.error(f"❌ Configuration validation failed: {e}")
-        raise
-    
-    logger.info(f"Configuration summary: {config.get_summary()}")
-    
-    yield
-    
-    # Shutdown
-    logger.info("🛑 Shutting down RAG-ENTERPRISE...")
-
-
-# إنشاء تطبيق FastAPI
+# إنشاء التطبيق
 app = FastAPI(
-    title="RAG-ENTERPRISE",
-    description="AI-Powered Enterprise RAG System with Financial Intelligence",
+    title="RAG-ENTERPRISE API",
+    description="AI-Powered Enterprise RAG System",
     version="1.0.0",
-    lifespan=lifespan
+    docs_url="/docs" if config.debug else None,
+    redoc_url="/redoc" if config.debug else None,
 )
-
 
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Middleware للتوقيت
-@app.middleware("http")
-async def add_process_time_header(request: Request, call_next):
-    start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
+# Startup Event
+@app.on_event("startup")
+async def startup_event():
+    """تهيئة عند البدء"""
+    logger.info("🚀 Starting RAG-ENTERPRISE...")
+    logger.info(f"Environment: {config.environment}")
+    logger.info(f"Debug mode: {config.debug}")
+    
+    # إنشاء قاعدة البيانات
+    try:
+        init_db()
+        logger.info("✅ Database initialized")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+    
+    # عرض معلومات التكوين
+    config_summary = {
+        "environment": config.environment,
+        "debug": config.debug,
+        "api": f"{config.api_host}:{config.api_port}",
+        "azure_openai_configured": bool(config.azure_openai.api_key),
+        "azure_search_configured": bool(config.azure_search.api_key),
+        "financial_features_enabled": True,
+        "supported_languages": ["ar", "en"],
+    }
+    
+    logger.info(f"Configuration summary: {config_summary}")
 
 
-# معالج الأخطاء العام
-@app.exception_handler(RAGEnterpriseException)
-async def rag_exception_handler(request: Request, exc: RAGEnterpriseException):
-    logger.error(f"RAG Exception: {exc.message} - Details: {exc.details}")
-    return JSONResponse(
-        status_code=400,
-        content={
-            "error": exc.__class__.__name__,
-            "message": exc.message,
-            "details": exc.details
-        }
-    )
-
-
-@app.exception_handler(Exception)
-async def general_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
-    return JSONResponse(
-        status_code=500,
-        content={
-            "error": "InternalServerError",
-            "message": "An unexpected error occurred"
-        }
-    )
-
-# ===== إضافة Routes =====
-from api.routes import documents, chat, financial
-
-app.include_router(documents.router, prefix="/api/v1")
-app.include_router(chat.router, prefix="/api/v1")
-app.include_router(financial.router, prefix="/api/v1")
-
-# Routes الأساسية
+# Root endpoint
 @app.get("/")
 async def root():
     """الصفحة الرئيسية"""
     return {
-        "message": "Welcome to RAG-ENTERPRISE",
+        "name": "RAG-ENTERPRISE API",
         "version": "1.0.0",
         "status": "operational",
-        "docs": "/docs"
+        "docs": "/docs" if config.debug else "disabled",
+        "features": {
+            "documents": "✅",
+            "chat": "✅",
+            "financial": "✅",
+            "admin": "✅",
+        }
     }
 
 
+# Health check
 @app.get("/health")
 async def health_check():
-    """فحص الصحة"""
+    """فحص صحة النظام"""
     return {
         "status": "healthy",
-        "timestamp": time.time(),
-        "environment": config.environment
+        "environment": config.environment,
+        "version": "1.0.0"
     }
 
 
+# Config endpoint
 @app.get("/config")
 async def get_config():
-    """عرض ملخص التكوين"""
-    return config.get_summary()
+    """عرض التكوين"""
+    return {
+        "environment": config.environment,
+        "debug": config.debug,
+        "features": {
+            "azure_openai": bool(config.azure_openai.api_key),
+            "azure_search": bool(config.azure_search.api_key),
+        }
+    }
 
 
-# سيتم إضافة المزيد من Routes لاحقاً
-# من: api/routes/documents.py, chat.py, financial.py, etc.
+# ===== Import Routes =====
+from api.routes import documents, chat, financial
+from api.routes.admin import users, models
+
+# ===== Include Routers =====
+app.include_router(documents.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")
+app.include_router(financial.router, prefix="/api/v1")
+
+# Admin Routes
+app.include_router(users.router, prefix="/api/v1")
+app.include_router(models.router, prefix="/api/v1")
 
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(
         "api.main:app",
         host=config.api_host,
         port=config.api_port,
-        reload=config.debug
+        reload=config.debug,
     )
