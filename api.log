@@ -1,0 +1,41 @@
+nohup: ignoring input
+INFO:     Will watch for changes in these directories: ['/workspaces/RAG-ENTERPRISE']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [110518] using WatchFiles
+2025-10-31 21:07:50 - api.main - INFO - ✅ Rate limiting enabled
+INFO:     Started server process [110704]
+INFO:     Waiting for application startup.
+2025-10-31 21:07:50 - api.main - INFO - 🚀 Starting RAG-ENTERPRISE API
+2025-10-31 21:07:50 - api.main - INFO - Environment: development
+2025-10-31 21:07:50 - api.main - INFO - Debug mode: True
+2025-10-31 21:07:50 - api.main - INFO - Initializing database...
+2025-10-31 21:07:50 - api.database - INFO - Database initialized successfully
+2025-10-31 21:07:50 - api.database - INFO - Default data already exists
+2025-10-31 21:07:50 - api.database - INFO - Database connection successful
+2025-10-31 21:07:50 - api.main - INFO - ✅ Database initialized successfully
+INFO:     Application startup complete.
+2025-10-31 21:07:53 - api.middleware.logging - INFO - Request started: GET /health
+2025-10-31 21:07:53 - api.middleware.logging - INFO - Request completed: {"method": "GET", "path": "/health", "query_params": {}, "client_host": "127.0.0.1", "user_agent": "curl/8.5.0", "status_code": 200, "duration_ms": 1.83}
+INFO:     127.0.0.1:51316 - "GET /health HTTP/1.1" 200 OK
+2025-10-31 21:07:59 - api.middleware.logging - INFO - Request started: GET /
+2025-10-31 21:07:59 - api.middleware.logging - INFO - Request completed: {"method": "GET", "path": "/", "query_params": {}, "client_host": "127.0.0.1", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0", "status_code": 200, "duration_ms": 0.7}
+INFO:     127.0.0.1:51328 - "GET / HTTP/1.1" 200 OK
+2025-10-31 21:08:00 - api.middleware.logging - INFO - Request started: GET /favicon.ico
+2025-10-31 21:08:00 - api.middleware.logging - WARNING - Request completed with error: {"method": "GET", "path": "/favicon.ico", "query_params": {}, "client_host": "127.0.0.1", "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0", "status_code": 404, "duration_ms": 0.65}
+INFO:     127.0.0.1:51328 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+2025-10-31 21:09:41 - api.middleware.logging - INFO - Request started: POST /api/v1/auth/login
+2025-10-31 21:09:41 - passlib.handlers.bcrypt - WARNING - (trapped) error reading bcrypt version
+Traceback (most recent call last):
+  File "/workspaces/RAG-ENTERPRISE/venv/lib/python3.12/site-packages/passlib/handlers/bcrypt.py", line 620, in _load_backend_mixin
+    version = _bcrypt.__about__.__version__
+              ^^^^^^^^^^^^^^^^^
+AttributeError: module 'bcrypt' has no attribute '__about__'
+2025-10-31 21:09:41 - api.routes.auth - INFO - User logged in: admin@admin.com
+2025-10-31 21:09:41 - api.middleware.logging - INFO - Request completed: {"method": "POST", "path": "/api/v1/auth/login", "query_params": {}, "client_host": "127.0.0.1", "user_agent": "curl/8.5.0", "status_code": 200, "duration_ms": 355.94}
+INFO:     127.0.0.1:40824 - "POST /api/v1/auth/login HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2025-10-31 21:32:55 - api.main - INFO - 👋 Shutting down RAG-ENTERPRISE API
+INFO:     Application shutdown complete.
+INFO:     Finished server process [110704]
+INFO:     Stopping reloader process [110518]
