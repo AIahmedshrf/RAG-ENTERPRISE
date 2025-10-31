@@ -1,68 +1,58 @@
-# utilities/logger.py
 """
-نظام التسجيل المركزي
+Logging Configuration
 """
-
 import logging
 import sys
+from typing import Optional
 from pathlib import Path
-from datetime import datetime
-from core.config import config
 
 
-class ColoredFormatter(logging.Formatter):
-    """منسق ملون للوحة التحكم"""
+def setup_logging(log_level: str = "INFO", log_file: Optional[str] = None):
+    """
+    Setup logging configuration
     
-    COLORS = {
-        'DEBUG': '\033[36m',      # Cyan
-        'INFO': '\033[32m',       # Green
-        'WARNING': '\033[33m',    # Yellow
-        'ERROR': '\033[31m',      # Red
-        'CRITICAL': '\033[35m',   # Magenta
-        'RESET': '\033[0m'
-    }
+    Args:
+        log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        log_file: Optional log file path
+    """
+    # Create logs directory if it doesn't exist
+    if log_file:
+        log_path = Path(log_file)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
     
-    def format(self, record):
-        log_color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
-        record.levelname = f"{log_color}{record.levelname}{self.COLORS['RESET']}"
-        return super().format(record)
-
-
-def setup_logger(name: str = "rag_enterprise") -> logging.Logger:
-    """إعداد نظام التسجيل"""
+    # Configure format
+    log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    date_format = "%Y-%m-%d %H:%M:%S"
     
-    logger = logging.getLogger(name)
-    logger.setLevel(getattr(logging, config.log_level))
+    # Handlers
+    handlers = [logging.StreamHandler(sys.stdout)]
     
-    # تجنب التكرار
-    if logger.handlers:
-        return logger
+    if log_file:
+        handlers.append(logging.FileHandler(log_file))
     
-    # Console Handler
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setLevel(logging.DEBUG if config.debug else logging.INFO)
-    console_formatter = ColoredFormatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+    # Basic config
+    logging.basicConfig(
+        level=getattr(logging, log_level.upper()),
+        format=log_format,
+        datefmt=date_format,
+        handlers=handlers
     )
-    console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
     
-    # File Handler
-    log_dir = Path("logs")
-    log_dir.mkdir(exist_ok=True)
-    
-    file_handler = logging.FileHandler(config.log_file, encoding='utf-8')
-    file_handler.setLevel(logging.DEBUG)
-    file_formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
-    file_handler.setFormatter(file_formatter)
-    logger.addHandler(file_handler)
-    
-    return logger
+    # Set third-party loggers to WARNING
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
+    logging.getLogger("azure").setLevel(logging.WARNING)
 
 
-# Logger instance
-logger = setup_logger()
+def get_logger(name: str) -> logging.Logger:
+    """
+    Get logger instance
+    
+    Args:
+        name: Logger name (usually __name__)
+    
+    Returns:
+        Logger instance
+    """
+    return logging.getLogger(name)

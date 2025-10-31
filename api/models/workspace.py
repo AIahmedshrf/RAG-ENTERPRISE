@@ -1,28 +1,26 @@
 """
 Workspace Model
 """
+from sqlalchemy import Column, String, Boolean, JSON
+from sqlalchemy.orm import relationship
+from .base import BaseModel
 
-from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Text
-from datetime import datetime
-from api.database import Base
 
+class Workspace(BaseModel):
+    """Workspace model for backward compatibility"""
+    __tablename__ = 'workspaces'
 
-class Workspace(Base):
-    __tablename__ = "workspaces"
+    name = Column(String(255), nullable=False)
+    description = Column(String(500))
+    
+    # Status
+    is_active = Column(Boolean, default=True)
+    
+    # Settings
+    settings = Column(JSON, default={})
+    
+    # Relationships
+    members = relationship("User", back_populates="workspace")
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False)
-    description = Column(Text)
-    owner_id = Column(Integer, ForeignKey("users.id"))
-    settings = Column(Text)  # JSON string
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "description": self.description,
-            "owner_id": self.owner_id,
-            "created_at": self.created_at.isoformat() if self.created_at else None,
-        }
+    def __repr__(self):
+        return f"<Workspace(id={self.id}, name={self.name})>"

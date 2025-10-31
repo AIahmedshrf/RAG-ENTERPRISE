@@ -1,154 +1,176 @@
-# core/config.py
 """
-التكوين المركزي لنظام RAG-ENTERPRISE
-يدمج تكوينات جميع المكونات من المستودعات الستة
+Enhanced Configuration Management
 """
-
+from pydantic_settings import BaseSettings
+from pydantic import Field, ConfigDict
+from typing import Optional, List
 import os
-from typing import List, Optional
-from dataclasses import dataclass, field
-from dotenv import load_dotenv
-
-# تحميل المتغيرات البيئية
-load_dotenv()
+from functools import lru_cache
 
 
-@dataclass
-class AzureOpenAIConfig:
-    """تكوين Azure OpenAI"""
-    endpoint: str = os.getenv("AZURE_OPENAI_ENDPOINT", "")
-    api_key: str = os.getenv("AZURE_OPENAI_KEY", "")
-    api_version: str = "2024-02-15-preview"
-    chat_deployment: str = os.getenv("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4")
-    embedding_deployment: str = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-ada-002")
-    max_retries: int = 3
-    timeout: int = 60
-
-
-@dataclass
-class AzureSearchConfig:
-    """تكوين Azure AI Search (من aisearchmm)"""
-    endpoint: str = os.getenv("AZURE_SEARCH_ENDPOINT", "")
-    api_key: str = os.getenv("AZURE_SEARCH_KEY", "")
-    api_version: str = "2023-11-01"
+class DatabaseSettings(BaseSettings):
+    """Database configuration"""
+    model_config = ConfigDict(extra='ignore')
     
-    # Indexes
-    general_index: str = "general-documents"
-    financial_index: str = "financial-documents"
-    research_index: str = "research-documents"
+    name: str = Field(default="rag_enterprise.db")
+    echo: bool = Field(default=False)
+    pool_size: int = Field(default=10)
+    max_overflow: int = Field(default=20)
 
 
-@dataclass
-class DocumentProcessingConfig:
-    """تكوين معالجة المستندات (من aisearchmm)"""
-    doc_intelligence_endpoint: str = os.getenv("AZURE_DOC_INTELLIGENCE_ENDPOINT", "")
-    doc_intelligence_key: str = os.getenv("AZURE_DOC_INTELLIGENCE_KEY", "")
+class AzureOpenAISettings(BaseSettings):
+    """Azure OpenAI configuration"""
+    model_config = ConfigDict(extra='ignore')
     
-    # Chunking settings
-    chunk_size: int = 1000
-    chunk_overlap: int = 200
+    api_key: str = Field(default="")
+    api_base: str = Field(default="")
+    api_version: str = Field(default="2024-02-15-preview")
+    deployment_name: str = Field(default="gpt-4")
+    embedding_deployment: str = Field(default="text-embedding-ada-002")
     
-    # Supported formats
-    supported_formats: List[str] = field(default_factory=lambda: [
-        "pdf", "docx", "xlsx", "pptx", "txt", "md"
-    ])
+    # Model parameters
+    temperature: float = Field(default=0.7, ge=0.0, le=2.0)
+    max_tokens: int = Field(default=2048, ge=1, le=32000)
+    top_p: float = Field(default=1.0, ge=0.0, le=1.0)
 
 
-@dataclass
-class FinancialConfig:
-    """تكوين النظام المالي (من wealthops + investmentagent)"""
-    # Market Data
-    market_data_api_key: str = os.getenv("MARKET_DATA_API_KEY", "")
-    news_api_key: str = os.getenv("NEWS_API_KEY", "")
+class AzureAISearchSettings(BaseSettings):
+    """Azure AI Search configuration"""
+    model_config = ConfigDict(extra='ignore')
     
-    # Features
-    enable_portfolio_tracking: bool = True
-    enable_real_time_data: bool = True
-    enable_investment_recommendations: bool = True
+    endpoint: str = Field(default="")
+    api_key: str = Field(default="")
+    index_name: str = Field(default="rag-enterprise-index")
+    semantic_configuration: str = Field(default="default")
+    use_semantic_search: bool = Field(default=True)
+
+
+class RedisSettings(BaseSettings):
+    """Redis configuration"""
+    model_config = ConfigDict(extra='ignore')
     
-    # Risk Settings
-    var_confidence_level: float = 0.95
-    default_risk_tolerance: str = "moderate"  # conservative, moderate, aggressive
-
-
-@dataclass
-class AgentConfig:
-    """تكوين الوكلاء (من agents + agentpatterns)"""
-    max_iterations: int = 5
-    timeout: int = 120
-    temperature: float = 0.7
-    max_tokens: int = 2000
+    host: str = Field(default="localhost")
+    port: int = Field(default=6379)
+    db: int = Field(default=0)
+    password: Optional[str] = Field(default=None)
+    max_connections: int = Field(default=50)
+    cache_ttl: int = Field(default=3600)
     
-    # Agent patterns
-    default_pattern: str = "router"  # sequential, parallel, hierarchical, router, consensus
-    enable_memory: bool = True
-    memory_window: int = 10
+    @property
+    def url(self) -> str:
+        """Get Redis URL"""
+        if self.password:
+            return f"redis://:{self.password}@{self.host}:{self.port}/{self.db}"
+        return f"redis://{self.host}:{self.port}/{self.db}"
 
 
-@dataclass
-class LanguageConfig:
-    """تكوين اللغات"""
-    supported_languages: List[str] = field(default_factory=lambda: ["ar", "en"])
-    default_language: str = "ar"
-    enable_translation: bool = False
-
-
-@dataclass
-class SystemConfig:
-    """التكوين الرئيسي للنظام"""
-    # Environment
-    environment: str = os.getenv("ENVIRONMENT", "development")
-    debug: bool = os.getenv("DEBUG", "true").lower() == "true"
+class SecuritySettings(BaseSettings):
+    """Security configuration"""
+    model_config = ConfigDict(extra='ignore')
     
-    # API Settings
-    api_host: str = os.getenv("API_HOST", "0.0.0.0")
-    api_port: int = int(os.getenv("API_PORT", "8000"))
-    
-    # Logging
-    log_level: str = os.getenv("LOG_LEVEL", "INFO")
-    log_file: str = "logs/app.log"
-    
-    # Sub-configurations
-    azure_openai: AzureOpenAIConfig = field(default_factory=AzureOpenAIConfig)
-    azure_search: AzureSearchConfig = field(default_factory=AzureSearchConfig)
-    document_processing: DocumentProcessingConfig = field(default_factory=DocumentProcessingConfig)
-    financial: FinancialConfig = field(default_factory=FinancialConfig)
-    agent: AgentConfig = field(default_factory=AgentConfig)
-    language: LanguageConfig = field(default_factory=LanguageConfig)
-    
-    def validate(self) -> bool:
-        """التحقق من صحة التكوين"""
-        errors = []
-        
-        # التحقق من Azure OpenAI
-        if not self.azure_openai.endpoint:
-            errors.append("AZURE_OPENAI_ENDPOINT is required")
-        if not self.azure_openai.api_key:
-            errors.append("AZURE_OPENAI_KEY is required")
-        
-        # التحقق من Azure Search
-        if not self.azure_search.endpoint:
-            errors.append("AZURE_SEARCH_ENDPOINT is required")
-        if not self.azure_search.api_key:
-            errors.append("AZURE_SEARCH_KEY is required")
-        
-        if errors:
-            raise ValueError(f"Configuration errors: {', '.join(errors)}")
-        
-        return True
-    
-    def get_summary(self) -> dict:
-        """الحصول على ملخص التكوين"""
-        return {
-            "environment": self.environment,
-            "debug": self.debug,
-            "api": f"{self.api_host}:{self.api_port}",
-            "azure_openai_configured": bool(self.azure_openai.endpoint),
-            "azure_search_configured": bool(self.azure_search.endpoint),
-            "financial_features_enabled": self.financial.enable_portfolio_tracking,
-            "supported_languages": self.language.supported_languages
-        }
+    secret_key: str = Field(default="dev-secret-key-change-in-production-please")
+    algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=30)
+    refresh_token_expire_days: int = Field(default=7)
+    bcrypt_rounds: int = Field(default=12)
+    cors_origins: List[str] = Field(default=["http://localhost:3000", "http://localhost:8000"])
 
 
-# Singleton instance
-config = SystemConfig()
+class RateLimitSettings(BaseSettings):
+    """Rate limiting configuration"""
+    model_config = ConfigDict(extra='ignore')
+    
+    enabled: bool = Field(default=True)
+    requests_per_minute: int = Field(default=60)
+    requests_per_hour: int = Field(default=1000)
+
+
+class StorageSettings(BaseSettings):
+    """Storage configuration"""
+    model_config = ConfigDict(extra='ignore')
+    
+    provider: str = Field(default="local")
+    local_path: str = Field(default="./storage")
+    azure_connection_string: Optional[str] = Field(default=None)
+    azure_container: str = Field(default="rag-enterprise")
+    max_file_size_mb: int = Field(default=50)
+
+
+class RAGSettings(BaseSettings):
+    """RAG configuration"""
+    model_config = ConfigDict(extra='ignore')
+    
+    chunk_size: int = Field(default=1000)
+    chunk_overlap: int = Field(default=200)
+    top_k: int = Field(default=5)
+    similarity_threshold: float = Field(default=0.7)
+    vector_weight: float = Field(default=0.7)
+    keyword_weight: float = Field(default=0.3)
+    use_reranking: bool = Field(default=True)
+    rerank_top_k: int = Field(default=3)
+
+
+class Settings(BaseSettings):
+    """Main application settings"""
+    model_config = ConfigDict(
+        extra='ignore',
+        env_file='.env',
+        env_file_encoding='utf-8',
+        case_sensitive=False
+    )
+    
+    # App info
+    app_name: str = "RAG-ENTERPRISE"
+    app_version: str = "1.0.0"
+    environment: str = Field(default="development")
+    debug: bool = Field(default=True)
+    
+    # API
+    api_prefix: str = "/api/v1"
+    
+    # Monitoring
+    enable_metrics: bool = Field(default=True)
+    enable_tracing: bool = Field(default=False)
+    
+    # Sub-settings initialized as properties
+    @property
+    def database(self) -> DatabaseSettings:
+        return DatabaseSettings()
+    
+    @property
+    def azure_openai(self) -> AzureOpenAISettings:
+        return AzureOpenAISettings()
+    
+    @property
+    def azure_search(self) -> AzureAISearchSettings:
+        return AzureAISearchSettings()
+    
+    @property
+    def redis(self) -> RedisSettings:
+        return RedisSettings()
+    
+    @property
+    def security(self) -> SecuritySettings:
+        return SecuritySettings()
+    
+    @property
+    def rate_limit(self) -> RateLimitSettings:
+        return RateLimitSettings()
+    
+    @property
+    def storage(self) -> StorageSettings:
+        return StorageSettings()
+    
+    @property
+    def rag(self) -> RAGSettings:
+        return RAGSettings()
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    """Get cached settings instance"""
+    return Settings()
+
+
+# Global settings instance
+settings = get_settings()
