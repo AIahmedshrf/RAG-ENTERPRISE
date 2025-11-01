@@ -6,7 +6,7 @@ from .workspace import Workspace
 from .tenant import Tenant
 from .role import Role, Permission, RolePermission
 from .dataset import Dataset
-from .document import Document, DocumentSegment
+from .document import Document, DocumentSegment, DocumentStatus, DocumentType
 from .conversation import Conversation
 from .message import Message, MessageFeedback
 from .app import App, AppModelConfig
@@ -24,6 +24,8 @@ __all__ = [
     'Dataset',
     'Document',
     'DocumentSegment',
+    'DocumentStatus',
+    'DocumentType',
     'Conversation',
     'Message',
     'MessageFeedback',

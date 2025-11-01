@@ -4,3 +4,39 @@ venv/
 .env
 logs/
 data/
+# Temporary files
+/tmp/
+*.log
+*.pid
+
+# Virtual environment (now in /tmp)
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Node modules (now in /tmp)
+node_modules/
+
+# Storage (now in /tmp)
+storage/
+
+# Test files
+test_files/
+downloaded_file.txt
+
+# Environment
+.envrc
+.api_token
+.test_dataset_id
+
+# Database (keep in git for now, but could exclude in production)
+# rag_enterprise.db
+
+# Cache
+.cache/
+*.cache
