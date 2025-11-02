@@ -212,3 +212,7 @@ app.include_router(
     prefix=f"{settings.api_prefix}/admin",
     tags=["Admin - Dify Adapted"]
 )
+
+# === WebSocket Routes ===
+from api.routes.websocket import router as websocket_router
+app.include_router(websocket_router, tags=["WebSocket"])

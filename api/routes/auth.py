@@ -1,34 +1,36 @@
 """
-Authentication Routes
+Authentication Routes - Complete Implementation
+Login, Register, Refresh Token, Logout
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
-from passlib.context import CryptContext
-from datetime import timedelta
+from pydantic import BaseModel, EmailStr, validator
+from typing import Optional
+from datetime import datetime
 
 from api.database import get_db
-from api.models import User, Role, Tenant
-from api.middleware.auth import AuthMiddleware, get_current_user
-from core.config import settings
-from utilities.logger import get_logger
+from api.models.user import User, UserStatus
+from core.auth import AuthService, get_current_user, get_current_active_user
 
-logger = get_logger(__name__)
-router = APIRouter(prefix="/auth")
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+router = APIRouter()
 
 
-# Request/Response Models
-class LoginRequest(BaseModel):
+# Schemas
+class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
 
-class RegisterRequest(BaseModel):
+class UserRegister(BaseModel):
     email: EmailStr
-    username: str
     password: str
-    full_name: str = None
+    name: Optional[str] = None
+    
+    @validator('password')
+    def validate_password(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        return v
 
 
 class TokenResponse(BaseModel):
@@ -42,195 +44,184 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: str
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password"""
-    return pwd_context.verify(plain_password, hashed_password)
-
-
-def get_password_hash(password: str) -> str:
-    """Hash password"""
-    return pwd_context.hash(password)
-
+# === Authentication Endpoints ===
 
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(request: RegisterRequest, db: Session = Depends(get_db)):
+async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     """Register new user"""
     # Check if user exists
-    existing_user = db.query(User).filter(
-        (User.email == request.email) | (User.username == request.username)
-    ).first()
-    
+    existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email or username already registered"
+            detail="Email already registered"
         )
     
-    # Get default tenant
-    default_tenant = db.query(Tenant).filter(Tenant.slug == "default").first()
-    if not default_tenant:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Default tenant not found"
-        )
-    
-    # Get user role
-    user_role = db.query(Role).filter(Role.name == "user").first()
-    
-    # Create user
-    hashed_password = get_password_hash(request.password)
-    user = User(
-        email=request.email,
-        username=request.username,
-        password_hash=hashed_password,
-        full_name=request.full_name,
-        tenant_id=default_tenant.id,
-        role_id=user_role.id if user_role else None,
-        is_active=True,
-        is_verified=False
+    # Create new user
+    new_user = User(
+        email=user_data.email,
+        password=AuthService.get_password_hash(user_data.password),
+        name=user_data.name or user_data.email.split('@')[0],
+        role="user",
+        status=UserStatus.ACTIVE
     )
     
-    db.add(user)
+    db.add(new_user)
     db.commit()
-    db.refresh(user)
+    db.refresh(new_user)
     
     # Generate tokens
-    access_token = AuthMiddleware.create_access_token(
-        data={"sub": user.id, "email": user.email}
-    )
-    refresh_token = AuthMiddleware.create_refresh_token(
-        data={"sub": user.id}
-    )
-    
-    logger.info(f"New user registered: {user.email}")
+    access_token = AuthService.create_access_token(data={"sub": new_user.id})
+    refresh_token = AuthService.create_refresh_token(data={"sub": new_user.id})
     
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer",
         "user": {
-            "id": user.id,
-            "email": user.email,
-            "username": user.username,
-            "full_name": user.full_name
+            "id": new_user.id,
+            "email": new_user.email,
+            "name": new_user.name,
+            "role": new_user.role
         }
     }
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
+async def login(credentials: UserLogin, db: Session = Depends(get_db)):
     """Login user"""
-    user = db.query(User).filter(User.email == request.email).first()
+    # Authenticate
+    user = AuthService.authenticate_user(db, credentials.email, credentials.password)
     
-    if not user or not verify_password(request.password, user.password_hash):
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
-    
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User account is inactive"
-        )
-    
-    # Generate tokens
-    access_token = AuthMiddleware.create_access_token(
-        data={"sub": user.id, "email": user.email}
-    )
-    refresh_token = AuthMiddleware.create_refresh_token(
-        data={"sub": user.id}
-    )
     
     # Update last login
-    from datetime import datetime
-    user.last_login_at = datetime.utcnow().isoformat()
+    user.last_login = datetime.utcnow()
     db.commit()
     
-    logger.info(f"User logged in: {user.email}")
+    # Generate tokens
+    access_token = AuthService.create_access_token(data={"sub": user.id})
+    refresh_token = AuthService.create_refresh_token(data={"sub": user.id})
     
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer",
         "user": {
             "id": user.id,
             "email": user.email,
-            "username": user.username,
-            "full_name": user.full_name
+            "name": user.name,
+            "role": user.role
         }
     }
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+async def refresh_token(token_data: RefreshTokenRequest, db: Session = Depends(get_db)):
     """Refresh access token"""
-    try:
-        payload = AuthMiddleware.decode_token(request.refresh_token)
-        
-        if payload.get("type") != "refresh":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token type"
-            )
-        
-        user_id = payload.get("sub")
-        user = db.query(User).filter(User.id == user_id).first()
-        
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
-            )
-        
-        # Generate new tokens
-        access_token = AuthMiddleware.create_access_token(
-            data={"sub": user.id, "email": user.email}
-        )
-        refresh_token = AuthMiddleware.create_refresh_token(
-            data={"sub": user.id}
-        )
-        
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-            "token_type": "bearer",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "username": user.username,
-                "full_name": user.full_name
-            }
-        }
-        
-    except Exception as e:
+    # Decode refresh token
+    payload = AuthService.decode_token(token_data.refresh_token)
+    
+    # Verify token type
+    if payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
+            detail="Invalid token type"
         )
-
-
-@router.get("/me")
-async def get_current_user_info(current_user: User = Depends(get_current_user)):
-    """Get current user information"""
+    
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == user_id).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found"
+        )
+    
+    # Generate new tokens
+    access_token = AuthService.create_access_token(data={"sub": user.id})
+    new_refresh_token = AuthService.create_refresh_token(data={"sub": user.id})
+    
     return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "username": current_user.username,
-        "full_name": current_user.full_name,
-        "avatar": current_user.avatar,
-        "tenant_id": current_user.tenant_id,
-        "role_id": current_user.role_id,
-        "is_active": current_user.is_active,
-        "is_verified": current_user.is_verified,
-        "preferences": current_user.preferences,
-        "language": current_user.language,
-        "created_at": current_user.created_at
+        "access_token": access_token,
+        "refresh_token": new_refresh_token,
+        "user": {
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "role": user.role
+        }
     }
 
 
 @router.post("/logout")
 async def logout(current_user: User = Depends(get_current_user)):
-    """Logout user"""
-    logger.info(f"User logged out: {current_user.email}")
+    """Logout user (client should delete tokens)"""
     return {"message": "Successfully logged out"}
+
+
+@router.get("/me")
+async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
+    """Get current user information"""
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role,
+        "status": current_user.status,
+        "created_at": current_user.created_at.isoformat(),
+        "last_login": current_user.last_login.isoformat() if current_user.last_login else None
+    }
+
+
+@router.put("/me")
+async def update_current_user(
+    name: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Update current user information"""
+    if name:
+        current_user.name = name
+    
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "role": current_user.role
+    }
+
+
+@router.post("/change-password")
+async def change_password(
+    current_password: str,
+    new_password: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Change user password"""
+    # Verify current password
+    if not AuthService.verify_password(current_password, current_user.password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Current password is incorrect"
+        )
+    
+    # Validate new password
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be at least 8 characters"
+        )
+    
+    # Update password
+    current_user.password = AuthService.get_password_hash(new_password)
+    db.commit()
+    
+    return {"message": "Password changed successfully"}
