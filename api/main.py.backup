@@ -204,11 +204,3 @@ if __name__ == "__main__":
         reload=settings.debug,
         log_level="info" if not settings.debug else "debug"
     )
-
-
-# === Admin Routes (Adapted from Dify) ===
-app.include_router(
-    admin_router,
-    prefix=f"{settings.api_prefix}/admin",
-    tags=["Admin - Dify Adapted"]
-)

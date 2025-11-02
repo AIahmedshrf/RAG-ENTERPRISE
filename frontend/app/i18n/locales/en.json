@@ -1,0 +1,47 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "filter": "Filter"
+  },
+  "admin": {
+    "dashboard": "Dashboard",
+    "overview": "Overview",
+    "applications": "Applications",
+    "knowledgeBase": "Knowledge Base",
+    "users": "Users",
+    "workspace": "Workspace",
+    "analytics": "Analytics",
+    "settings": "Settings"
+  },
+  "apps": {
+    "title": "Applications",
+    "description": "Manage your AI applications and chatbots",
+    "createNew": "Create Application",
+    "appName": "Application Name",
+    "appMode": "Mode",
+    "appDescription": "Description"
+  },
+  "datasets": {
+    "title": "Knowledge Base",
+    "description": "Manage datasets and documents",
+    "createNew": "Create Dataset",
+    "datasetName": "Dataset Name",
+    "documents": "Documents",
+    "indexingTechnique": "Indexing Technique"
+  },
+  "users": {
+    "title": "Users Management",
+    "description": "Manage team members and permissions",
+    "inviteUser": "Invite User",
+    "email": "Email Address",
+    "role": "Role",
+    "status": "Status",
+    "joined": "Joined"
+  }
+}

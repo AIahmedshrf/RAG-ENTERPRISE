@@ -1,0 +1,47 @@
+{
+  "common": {
+    "loading": "جاري التحميل...",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "create": "إنشاء",
+    "search": "بحث",
+    "filter": "تصفية"
+  },
+  "admin": {
+    "dashboard": "لوحة التحكم",
+    "overview": "نظرة عامة",
+    "applications": "التطبيقات",
+    "knowledgeBase": "قاعدة المعرفة",
+    "users": "المستخدمون",
+    "workspace": "مساحة العمل",
+    "analytics": "التحليلات",
+    "settings": "الإعدادات"
+  },
+  "apps": {
+    "title": "التطبيقات",
+    "description": "إدارة تطبيقات الذكاء الاصطناعي وروبوتات المحادثة",
+    "createNew": "إنشاء تطبيق",
+    "appName": "اسم التطبيق",
+    "appMode": "النوع",
+    "appDescription": "الوصف"
+  },
+  "datasets": {
+    "title": "قاعدة المعرفة",
+    "description": "إدارة مجموعات البيانات والمستندات",
+    "createNew": "إنشاء مجموعة بيانات",
+    "datasetName": "اسم المجموعة",
+    "documents": "المستندات",
+    "indexingTechnique": "تقنية الفهرسة"
+  },
+  "users": {
+    "title": "إدارة المستخدمين",
+    "description": "إدارة أعضاء الفريق والصلاحيات",
+    "inviteUser": "دعوة مستخدم",
+    "email": "البريد الإلكتروني",
+    "role": "الدور",
+    "status": "الحالة",
+    "joined": "تاريخ الانضمام"
+  }
+}
