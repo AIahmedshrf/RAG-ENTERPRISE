@@ -1,34 +1,28 @@
 """
-Base Model with common fields
+Base Model
+All models inherit from this
 """
-from datetime import datetime
-from sqlalchemy import Column, Integer, DateTime, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, String, DateTime
 from sqlalchemy.sql import func
 import uuid
 
-Base = declarative_base()
+# Import Base from database - THIS IS CRITICAL
+from api.database import Base
 
 
 class BaseModel(Base):
-    """Base model with common fields"""
+    """
+    Base model with common fields
+    All models inherit from this
+    """
     __abstract__ = True
-
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
-    def to_dict(self):
-        """Convert model to dictionary"""
-        return {
-            column.name: getattr(self, column.name)
-            for column in self.__table__.columns
-        }
-
-    def __repr__(self):
-        return f"<{self.__class__.__name__}(id={self.id})>"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
 
 
 class TenantMixin:
-    """Mixin for multi-tenant models"""
-    tenant_id = Column(String(36), nullable=False, index=True)
+    """Mixin for tenant isolation"""
+    # This is just a marker, actual tenant_id is in individual models
+    pass
