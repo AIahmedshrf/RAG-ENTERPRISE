@@ -1,6 +1,10 @@
+"""
+Document Models - Complete with all file types
+"""
 from sqlalchemy import Column, String, Text, Integer, Boolean, Enum as SQLEnum
 import enum
 from .base import BaseModel
+
 
 class DocumentStatus(str, enum.Enum):
     UPLOADING = "uploading"
@@ -8,18 +12,29 @@ class DocumentStatus(str, enum.Enum):
     COMPLETED = "completed"
     ERROR = "error"
 
+
 class DocumentType(str, enum.Enum):
+    """All supported document types"""
     TEXT = "text"
+    TXT = "txt"
     PDF = "pdf"
     WORD = "word"
-    DOCX = "docx"  # Added
-    DOC = "doc"    # Added
+    DOC = "doc"
+    DOCX = "docx"
     EXCEL = "excel"
+    XLS = "xls"
+    XLSX = "xlsx"
     CSV = "csv"
     JSON = "json"
+    MARKDOWN = "markdown"
+    MD = "md"
+    HTML = "html"
+    XML = "xml"
+
 
 class Document(BaseModel):
     __tablename__ = "documents"
+
     name = Column(String, nullable=False)
     type = Column(SQLEnum(DocumentType), nullable=False)
     dataset_id = Column(String, nullable=False)
@@ -28,11 +43,14 @@ class Document(BaseModel):
     character_count = Column(Integer, default=0)
     file_path = Column(String, nullable=True)
     created_by = Column(String, nullable=True)
+    
     def __repr__(self):
         return f"<Document {self.name}>"
 
+
 class DocumentSegment(BaseModel):
     __tablename__ = "document_segments"
+
     document_id = Column(String, nullable=False)
     position = Column(Integer, nullable=False)
     content = Column(Text, nullable=False)
@@ -41,5 +59,6 @@ class DocumentSegment(BaseModel):
     index_node_id = Column(String, nullable=True)
     index_node_hash = Column(String, nullable=True)
     enabled = Column(Boolean, default=True)
+    
     def __repr__(self):
         return f"<DocumentSegment {self.document_id}:{self.position}>"

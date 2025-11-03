@@ -1,115 +1,112 @@
 """
-Storage Manager for File Uploads
+Storage Utilities
+File storage management
 """
 import os
-import hashlib
 from pathlib import Path
-from typing import BinaryIO, Optional
+from typing import Optional
+import shutil
 from datetime import datetime
 
-from core.config import settings
-from utilities.logger import get_logger
 
-logger = get_logger(__name__)
+def get_storage_path() -> str:
+    """
+    Get storage path for uploaded files
+    Creates directory if it doesn't exist
+    """
+    # Use /tmp for codespaces
+    storage_path = os.getenv('STORAGE_PATH', '/tmp/rag-enterprise/storage')
+    
+    # Create directory if it doesn't exist
+    os.makedirs(storage_path, exist_ok=True)
+    
+    return storage_path
 
 
-class StorageManager:
-    """Manage file storage (local or Azure Blob)"""
+def get_upload_path(filename: str, user_id: Optional[str] = None) -> str:
+    """
+    Get full path for uploaded file
+    """
+    storage_path = get_storage_path()
     
-    def __init__(self):
-        self.provider = settings.storage.provider
-        self.local_path = Path(settings.storage.local_path)
-        
-        # Create local storage directory
-        if self.provider == "local":
-            self.local_path.mkdir(parents=True, exist_ok=True)
-            logger.info(f"Local storage initialized: {self.local_path}")
+    # Create user subfolder if provided
+    if user_id:
+        user_path = os.path.join(storage_path, user_id)
+        os.makedirs(user_path, exist_ok=True)
+        return os.path.join(user_path, filename)
     
-    def save_file(
-        self,
-        file: BinaryIO,
-        filename: str,
-        subfolder: str = "documents"
-    ) -> tuple[str, str, int]:
-        """
-        Save file and return (file_path, file_hash, file_size)
-        
-        Args:
-            file: File binary stream
-            filename: Original filename
-            subfolder: Subfolder name (documents, images, etc.)
-        
-        Returns:
-            Tuple of (file_path, file_hash, file_size)
-        """
-        # Read file content
-        content = file.read()
-        file.seek(0)  # Reset for potential re-read
-        
-        # Calculate hash
-        file_hash = hashlib.sha256(content).hexdigest()
-        file_size = len(content)
-        
-        # Generate storage path
-        timestamp = datetime.utcnow().strftime("%Y%m%d")
-        safe_filename = self._sanitize_filename(filename)
-        relative_path = f"{subfolder}/{timestamp}/{file_hash[:8]}_{safe_filename}"
-        
-        if self.provider == "local":
-            # Save to local storage
-            full_path = self.local_path / relative_path
-            full_path.parent.mkdir(parents=True, exist_ok=True)
-            
-            with open(full_path, 'wb') as f:
-                f.write(content)
-            
-            logger.info(f"File saved locally: {relative_path}")
-            return str(relative_path), file_hash, file_size
-        
-        elif self.provider == "azure":
-            # TODO: Implement Azure Blob Storage
-            logger.warning("Azure Blob Storage not implemented yet, using local fallback")
-            return self.save_file(file, filename, subfolder)
-        
-        else:
-            raise ValueError(f"Unknown storage provider: {self.provider}")
+    return os.path.join(storage_path, filename)
+
+
+def save_uploaded_file(file_content: bytes, filename: str, user_id: Optional[str] = None) -> str:
+    """
+    Save uploaded file to storage
+    Returns: file path
+    """
+    file_path = get_upload_path(filename, user_id)
     
-    def get_file_path(self, relative_path: str) -> Path:
-        """Get full file path"""
-        if self.provider == "local":
-            return self.local_path / relative_path
-        else:
-            raise NotImplementedError(f"Provider {self.provider} not implemented")
+    with open(file_path, 'wb') as f:
+        f.write(file_content)
     
-    def file_exists(self, relative_path: str) -> bool:
-        """Check if file exists"""
-        if self.provider == "local":
-            return (self.local_path / relative_path).exists()
+    return file_path
+
+
+def delete_file(file_path: str) -> bool:
+    """
+    Delete file from storage
+    Returns: True if deleted, False if not found
+    """
+    try:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
         return False
-    
-    def delete_file(self, relative_path: str) -> bool:
-        """Delete file"""
-        try:
-            if self.provider == "local":
-                file_path = self.local_path / relative_path
-                if file_path.exists():
-                    file_path.unlink()
-                    logger.info(f"File deleted: {relative_path}")
-                    return True
-            return False
-        except Exception as e:
-            logger.error(f"Error deleting file {relative_path}: {e}")
-            return False
-    
-    @staticmethod
-    def _sanitize_filename(filename: str) -> str:
-        """Sanitize filename to prevent path traversal"""
-        # Remove path components
-        filename = os.path.basename(filename)
-        # Remove dangerous characters
-        safe_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_"
-        return ''.join(c if c in safe_chars else '_' for c in filename)
+    except Exception as e:
+        print(f"Error deleting file: {e}")
+        return False
 
 
-# Global storage instance
-storage_manager = StorageManager()
+def get_file_info(file_path: str) -> dict:
+    """
+    Get file information
+    """
+    if not os.path.exists(file_path):
+        return None
+    
+    stat = os.stat(file_path)
+    
+    return {
+        "path": file_path,
+        "name": os.path.basename(file_path),
+        "size": stat.st_size,
+        "size_mb": round(stat.st_size / (1024 * 1024), 2),
+        "created": datetime.fromtimestamp(stat.st_ctime).isoformat(),
+        "modified": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+    }
+
+
+def cleanup_old_files(days: int = 30):
+    """
+    Cleanup files older than specified days
+    """
+    storage_path = get_storage_path()
+    now = datetime.now().timestamp()
+    cutoff = now - (days * 24 * 60 * 60)
+    
+    deleted_count = 0
+    
+    for root, dirs, files in os.walk(storage_path):
+        for file in files:
+            file_path = os.path.join(root, file)
+            if os.path.getmtime(file_path) < cutoff:
+                try:
+                    os.remove(file_path)
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"Error deleting {file_path}: {e}")
+    
+    return deleted_count
+
+
+# Initialize storage on import
+get_storage_path()

@@ -1,42 +1,108 @@
 """
-Document Management Routes with File Upload
+Document Management Routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Optional
-import mimetypes
+import os
+import aiofiles
+from datetime import datetime
 
 from api.database import get_db
-from api.models import Document, Dataset, User, DocumentStatus, DocumentType
-from api.middleware.auth import get_current_user
-from utilities.storage import storage_manager
-from utilities.logger import get_logger
+from api.models.document import Document, DocumentType, DocumentStatus
+from api.models.user import User
+from core.auth import get_current_user
+from utilities.storage import get_storage_path
 
-logger = get_logger(__name__)
-router = APIRouter(prefix="/documents")
-
+router = APIRouter()
 
 # File type mapping
-ALLOWED_EXTENSIONS = {
+FILE_TYPE_MAPPING = {
+    '.txt': DocumentType.TXT,
     '.pdf': DocumentType.PDF,
+    '.doc': DocumentType.DOC,
     '.docx': DocumentType.DOCX,
+    '.xls': DocumentType.XLS,
     '.xlsx': DocumentType.XLSX,
-    '.pptx': DocumentType.PPTX,
-    '.txt': DocumentType.TEXT,
-    '.md': DocumentType.MARKDOWN,
+    '.csv': DocumentType.CSV,
+    '.json': DocumentType.JSON,
+    '.md': DocumentType.MD,
     '.html': DocumentType.HTML,
-    '.csv': DocumentType.CSV
+    '.xml': DocumentType.XML,
 }
 
 
-@router.get("/")
+@router.post("/documents/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    dataset_id: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upload a document
+    """
+    # Get file extension
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    
+    # Check if supported
+    if file_ext not in FILE_TYPE_MAPPING:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported file type: {file_ext}"
+        )
+    
+    # Create document record
+    document = Document(
+        name=file.filename,
+        type=FILE_TYPE_MAPPING[file_ext],
+        dataset_id=dataset_id or "default",
+        status=DocumentStatus.UPLOADING,
+        created_by=current_user.id
+    )
+    
+    db.add(document)
+    db.commit()
+    db.refresh(document)
+    
+    # Save file
+    try:
+        storage_path = get_storage_path()
+        file_path = os.path.join(storage_path, f"{document.id}_{file.filename}")
+        
+        async with aiofiles.open(file_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+        
+        # Update document
+        document.file_path = file_path
+        document.status = DocumentStatus.COMPLETED
+        db.commit()
+        
+        return {
+            "id": document.id,
+            "name": document.name,
+            "type": document.type,
+            "status": document.status,
+            "created_at": document.created_at.isoformat()
+        }
+        
+    except Exception as e:
+        document.status = DocumentStatus.ERROR
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to save file: {str(e)}"
+        )
+
+
+@router.get("/documents")
 async def list_documents(
     dataset_id: Optional[str] = None,
-    status: Optional[str] = None,
     skip: int = 0,
-    limit: int = 50,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """List documents"""
     query = db.query(Document)
@@ -44,127 +110,26 @@ async def list_documents(
     if dataset_id:
         query = query.filter(Document.dataset_id == dataset_id)
     
-    if status:
-        query = query.filter(Document.status == status)
-    
     documents = query.offset(skip).limit(limit).all()
-    return documents
-
-
-@router.post("/upload", status_code=status.HTTP_201_CREATED)
-async def upload_document(
-    file: UploadFile = File(...),
-    dataset_id: str = Form(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Upload document to dataset
     
-    Supported formats: PDF, DOCX, XLSX, PPTX, TXT, MD, HTML, CSV
-    """
-    # Verify dataset exists and user has access
-    dataset = db.query(Dataset).filter(
-        Dataset.id == dataset_id,
-        Dataset.tenant_id == current_user.tenant_id
-    ).first()
-    
-    if not dataset:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Dataset not found"
-        )
-    
-    # Check file extension
-    file_ext = '.' + file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-    
-    if file_ext not in ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type. Allowed: {', '.join(ALLOWED_EXTENSIONS.keys())}"
-        )
-    
-    file_type = ALLOWED_EXTENSIONS[file_ext]
-    
-    # Check file size
-    max_size = settings.storage.max_file_size_mb * 1024 * 1024
-    
-    try:
-        # Save file to storage
-        file_path, file_hash, file_size = storage_manager.save_file(
-            file.file,
-            file.filename,
-            subfolder=f"datasets/{dataset_id}"
-        )
-        
-        if file_size > max_size:
-            storage_manager.delete_file(file_path)
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File too large. Max size: {settings.storage.max_file_size_mb}MB"
-            )
-        
-        # Check for duplicates
-        existing_doc = db.query(Document).filter(
-            Document.dataset_id == dataset_id,
-            Document.file_hash == file_hash
-        ).first()
-        
-        if existing_doc:
-            storage_manager.delete_file(file_path)
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"Document already exists: {existing_doc.name}"
-            )
-        
-        # Create document record
-        document = Document(
-            dataset_id=dataset_id,
-            name=file.filename,
-            file_type=file_type,
-            file_size=file_size,
-            file_path=file_path,
-            file_hash=file_hash,
-            status=DocumentStatus.WAITING,
-            created_by=current_user.id
-        )
-        
-        db.add(document)
-        
-        # Update dataset stats
-        dataset.document_count += 1
-        
-        db.commit()
-        db.refresh(document)
-        
-        logger.info(f"Document uploaded: {document.id} - {file.filename}")
-        
-        # TODO: Trigger async processing
-        
-        return {
-            "id": document.id,
-            "name": document.name,
-            "file_type": document.file_type,
-            "file_size": document.file_size,
-            "status": document.status,
-            "message": "Document uploaded successfully. Processing will start shortly."
+    return [
+        {
+            "id": doc.id,
+            "name": doc.name,
+            "type": doc.type,
+            "status": doc.status,
+            "word_count": doc.word_count,
+            "created_at": doc.created_at.isoformat()
         }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error uploading document: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error uploading document: {str(e)}"
-        )
+        for doc in documents
+    ]
 
 
-@router.get("/{document_id}")
+@router.get("/documents/{document_id}")
 async def get_document(
     document_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Get document details"""
     document = db.query(Document).filter(Document.id == document_id).first()
@@ -175,14 +140,22 @@ async def get_document(
             detail="Document not found"
         )
     
-    return document
+    return {
+        "id": document.id,
+        "name": document.name,
+        "type": document.type,
+        "status": document.status,
+        "word_count": document.word_count,
+        "file_path": document.file_path,
+        "created_at": document.created_at.isoformat()
+    }
 
 
-@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/documents/{document_id}")
 async def delete_document(
     document_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Delete document"""
     document = db.query(Document).filter(Document.id == document_id).first()
@@ -193,53 +166,12 @@ async def delete_document(
             detail="Document not found"
         )
     
-    # Delete file from storage
-    if document.file_path:
-        storage_manager.delete_file(document.file_path)
+    # Delete file if exists
+    if document.file_path and os.path.exists(document.file_path):
+        os.remove(document.file_path)
     
     # Delete from database
     db.delete(document)
-    
-    # Update dataset stats
-    dataset = db.query(Dataset).filter(Dataset.id == document.dataset_id).first()
-    if dataset:
-        dataset.document_count = max(0, dataset.document_count - 1)
-    
     db.commit()
     
-    logger.info(f"Document deleted: {document_id}")
-    
-    return None
-
-
-@router.get("/{document_id}/download")
-async def download_document(
-    document_id: str,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Download document (placeholder)"""
-    document = db.query(Document).filter(Document.id == document_id).first()
-    
-    if not document:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
-        )
-    
-    # TODO: Implement actual file download
-    from fastapi.responses import FileResponse
-    
-    file_path = storage_manager.get_file_path(document.file_path)
-    
-    if not file_path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="File not found in storage"
-        )
-    
-    return FileResponse(
-        path=str(file_path),
-        filename=document.name,
-        media_type='application/octet-stream'
-    )
+    return {"message": "Document deleted successfully"}
