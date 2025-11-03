@@ -1,6 +1,5 @@
-
-🚀 خطة التحسين الشاملة
-المرحلة A: نقل البيئة الافتراضية إلى /tmp
+#🚀 خطة التحسين الشاملة
+# المرحلة A: نقل البيئة الافتراضية إلى /tmp
 
 cd /workspaces/RAG-ENTERPRISE
 
@@ -51,7 +50,9 @@ pip install -q --upgrade pip
 pip install -q -r requirements.txt
 
 echo "✅ Python environment في /tmp"
-المرحلة B: نقل node_modules إلى /tmp
+
+#المرحلة B: نقل node_modules إلى /tmp
+
 echo ""
 echo "2️⃣ نقل node_modules إلى /tmp..."
 
@@ -146,26 +147,22 @@ fi
 
 echo "✅ Added to ~/.bashrc"
 
-
-
-المرحلة F: قياس النتائج
+#المرحلة D: تنظيف الكاش القديم
 echo ""
-echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║              📊 Optimization Results                          ║"
-echo "╚════════════════════════════════════════════════════════════════╝"
-echo ""
+echo "4️⃣ تنظيف الكاش القديم..."
 
-echo "💾 المساحة بعد التحسين:"
-df -h | grep -E "Filesystem|/workspaces|/tmp"
+# تنظيف pip cache القديم
+pip cache purge 2>/dev/null || true
 
-echo ""
-echo "📁 حجم المجلدات الرئيسية:"
-du -sh /workspaces/RAG-ENTERPRISE 2>/dev/null
-du -sh /tmp/rag-enterprise 2>/dev/null
+# تنظيف npm cache
+npm cache clean --force 2>/dev/null || true
 
-echo ""
-echo "🔗 Symbolic Links:"
-ls -lah /workspaces/RAG-ENTERPRISE/ | grep "^l"
+# حذف __pycache__
+find /workspaces/RAG-ENTERPRISE -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
+find /workspaces/RAG-ENTERPRISE -type f -name "*.pyc" -delete 2>/dev/null || true
 
-echo ""
-echo "✅ التحسين اكتمل!"
+# حذف .next build (frontend)
+rm -rf /workspaces/RAG-ENTERPRISE/frontend/.next 2>/dev/null || true
+
+echo "✅ Old cache cleaned"
+

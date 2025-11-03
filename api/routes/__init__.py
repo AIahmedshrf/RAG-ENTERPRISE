@@ -1,6 +1,5 @@
 """
 API Routes Package
-Centralized route imports
 """
 from .health import router as health_router
 from .auth import router as auth_router
@@ -11,7 +10,7 @@ from .chat import router as chat_router
 from .financial import router as financial_router
 from .tools import router as tools_router
 from .analytics import router as analytics_router
-from .admin import admin_router  # Fixed import
+from .admin import admin_router
 
 __all__ = [
     'health_router',
@@ -23,5 +22,5 @@ __all__ = [
     'financial_router',
     'tools_router',
     'analytics_router',
-    'admin_router',  # Fixed
+    'admin_router',
 ]

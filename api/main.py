@@ -1,70 +1,53 @@
 """
-Enhanced FastAPI Main Application
-RAG-ENTERPRISE v1.0
+RAG-ENTERPRISE Main API Application
+FastAPI application with all routes and middleware
 """
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
 from contextlib import asynccontextmanager
 import logging
+from datetime import datetime
 
-# Configuration
 from core.config import settings
+from api.database import init_db
+from api.middleware.logging import LoggingMiddleware
+from api.middleware.rate_limit import RateLimitMiddleware
 
-# Database
-from api.database import init_db, create_default_data, check_db_connection, get_db_health
-
-# Middleware
-from api.middleware import (
-    RateLimitMiddleware,
-    LoggingMiddleware,
-)
-
-# Routes
+# Import all routers
 from api.routes import (
+    health_router,
     auth_router,
-    documents_router,
     datasets_router,
-    chat_router,
+    documents_router,
     conversations_router,
+    chat_router,
     financial_router,
     tools_router,
     analytics_router,
     admin_router,
-    health_router
 )
 
-# Logging
-from utilities.logger import setup_logging, get_logger
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# Setup logging
-setup_logging()
-logger = get_logger(__name__)
 
-
-# Lifespan events
+# Lifespan context manager
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan events for startup and shutdown"""
+    """Application lifespan events"""
     # Startup
     logger.info("🚀 Starting RAG-ENTERPRISE API")
-    logger.info(f"Environment: {settings.environment}")
-    logger.info(f"Debug mode: {settings.debug}")
+    logger.info(f"Environment: {getattr(settings, 'ENVIRONMENT', 'development')}")
+    logger.info(f"Debug mode: {getattr(settings, 'DEBUG', True)}")
     
-    # Initialize database
     try:
         logger.info("Initializing database...")
         init_db()
-        
-        # Create default data if needed
-        create_default_data()
-        
-        # Check connection
-        if check_db_connection():
-            logger.info("✅ Database initialized successfully")
-        else:
-            logger.error("❌ Database connection failed")
     except Exception as e:
         logger.error(f"❌ Database initialization error: {e}")
     
@@ -76,143 +59,124 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title=settings.app_name,
-    version=settings.app_version,
-    description="Enterprise RAG System with Multi-Agent Support",
+    title="RAG-ENTERPRISE API",
+    description="Enterprise RAG Platform with Multi-Agent Support",
+    version="2.1.0",
+    lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json",
-    lifespan=lifespan
 )
 
 
-# CORS Middleware
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.security.cors_origins,
+    allow_origins=getattr(settings, 'ALLOWED_ORIGINS', ['*']),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["X-Process-Time", "X-RateLimit-*"]
 )
 
 
-# Custom Middleware
+# Custom middleware
 app.add_middleware(LoggingMiddleware)
-
-if settings.rate_limit.enabled:
-    app.add_middleware(RateLimitMiddleware)
-    logger.info("✅ Rate limiting enabled")
+app.add_middleware(RateLimitMiddleware)
 
 
-# Exception Handlers
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    """Handle validation errors"""
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content={
-            "error": "validation_error",
-            "detail": "Request validation failed",
-            "errors": exc.errors()
-        }
-    )
-
-
+# Exception handlers
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    """Handle all unhandled exceptions"""
-    logger.error(f"Unhandled exception: {str(exc)}", exc_info=True)
+    """Global exception handler"""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
-            "error": "internal_server_error",
-            "detail": "An unexpected error occurred",
-            "path": str(request.url.path)
+            "detail": "Internal server error",
+            "timestamp": datetime.utcnow().isoformat()
         }
     )
 
 
-# Include Routers
+# Register routers
+# Health check (no prefix)
 app.include_router(health_router, tags=["Health"])
-app.include_router(auth_router, prefix=settings.api_prefix, tags=["Authentication"])
-app.include_router(datasets_router, prefix=settings.api_prefix, tags=["Datasets"])
-app.include_router(documents_router, prefix=settings.api_prefix, tags=["Documents"])
-app.include_router(conversations_router, prefix=settings.api_prefix, tags=["Conversations"])
-app.include_router(chat_router, prefix=settings.api_prefix, tags=["Chat"])
-app.include_router(financial_router, prefix=settings.api_prefix, tags=["Financial"])
-app.include_router(tools_router, prefix=settings.api_prefix, tags=["Tools"])
-app.include_router(analytics_router, prefix=settings.api_prefix, tags=["Analytics"])
-app.include_router(admin_router, prefix=settings.api_prefix, tags=["Admin"])
+
+# Authentication routes
+app.include_router(
+    auth_router,
+    prefix=f"{settings.api_prefix}/auth",
+    tags=["Authentication"]
+)
+
+# Main API routes
+app.include_router(
+    datasets_router,
+    prefix=settings.api_prefix,
+    tags=["Datasets"]
+)
+
+app.include_router(
+    documents_router,
+    prefix=settings.api_prefix,
+    tags=["Documents"]
+)
+
+app.include_router(
+    conversations_router,
+    prefix=settings.api_prefix,
+    tags=["Conversations"]
+)
+
+app.include_router(
+    chat_router,
+    prefix=settings.api_prefix,
+    tags=["Chat"]
+)
+
+app.include_router(
+    financial_router,
+    prefix=settings.api_prefix,
+    tags=["Financial"]
+)
+
+app.include_router(
+    tools_router,
+    prefix=settings.api_prefix,
+    tags=["Tools"]
+)
+
+app.include_router(
+    analytics_router,
+    prefix=settings.api_prefix,
+    tags=["Analytics"]
+)
+
+# Admin routes
+app.include_router(
+    admin_router,
+    prefix=f"{settings.api_prefix}/admin",
+    tags=["Admin"]
+)
 
 
-# Root Endpoints
+# Root endpoint
 @app.get("/")
 async def root():
     """Root endpoint"""
     return {
-        "name": settings.app_name,
-        "version": settings.app_version,
-        "status": "running",
-        "environment": settings.environment,
+        "name": "RAG-ENTERPRISE API",
+        "version": "2.1.0",
+        "status": "operational",
         "docs": "/docs",
-        "redoc": "/redoc",
         "health": "/health"
-    }
-
-
-@app.get("/info")
-async def system_info():
-    """System information endpoint"""
-    return {
-        "app": {
-            "name": settings.app_name,
-            "version": settings.app_version,
-            "environment": settings.environment
-        },
-        "features": {
-            "multi_tenancy": True,
-            "rbac": True,
-            "rate_limiting": settings.rate_limit.enabled,
-            "metrics": settings.enable_metrics,
-            "tracing": settings.enable_tracing
-        },
-        "ai": {
-            "provider": "Azure OpenAI",
-            "embedding_model": settings.azure_openai.embedding_deployment
-        },
-        "storage": {
-            "provider": settings.storage.provider,
-            "max_file_size_mb": settings.storage.max_file_size_mb
-        },
-        "rag": {
-            "chunk_size": settings.rag.chunk_size,
-            "chunk_overlap": settings.rag.chunk_overlap,
-            "top_k": settings.rag.top_k,
-            "use_reranking": settings.rag.use_reranking
-        }
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    
     uvicorn.run(
         "api.main:app",
         host="0.0.0.0",
         port=8000,
-        reload=settings.debug,
-        log_level="info" if not settings.debug else "debug"
+        reload=True
     )
-
-
-# === Admin Routes (Adapted from Dify) ===
-app.include_router(
-    admin_router,
-    prefix=f"{settings.api_prefix}/admin",
-    tags=["Admin - Dify Adapted"]
-)
-
-# === WebSocket Routes ===
-from api.routes.websocket import router as websocket_router
-app.include_router(websocket_router, tags=["WebSocket"])

@@ -1,8 +1,8 @@
-"""Initial database schema with all models
+"""initial_schema_with_auth
 
-Revision ID: 33240e5dffa4
+Revision ID: e05be9f4c5ee
 Revises: 
-Create Date: 2025-10-31 19:14:01.226218
+Create Date: 2025-11-03 18:24:04.445616
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '33240e5dffa4'
+revision = 'e05be9f4c5ee'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -92,56 +92,20 @@ def upgrade() -> None:
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_table('workspaces',
-    sa.Column('name', sa.String(length=255), nullable=False),
-    sa.Column('description', sa.String(length=500), nullable=True),
-    sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('settings', sa.JSON(), nullable=True),
-    sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.PrimaryKeyConstraint('id')
-    )
-    op.create_table('role_permissions',
-    sa.Column('role_id', sa.String(length=36), nullable=False),
-    sa.Column('permission_id', sa.String(length=36), nullable=False),
-    sa.Column('id', sa.String(length=36), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
-    sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['permission_id'], ['permissions.id'], ),
-    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
-    sa.PrimaryKeyConstraint('id')
-    )
     op.create_table('users',
-    sa.Column('email', sa.String(length=255), nullable=False),
-    sa.Column('username', sa.String(length=100), nullable=False),
-    sa.Column('password_hash', sa.String(length=255), nullable=False),
-    sa.Column('full_name', sa.String(length=255), nullable=True),
-    sa.Column('avatar', sa.String(length=500), nullable=True),
-    sa.Column('phone', sa.String(length=50), nullable=True),
-    sa.Column('tenant_id', sa.String(length=36), nullable=False),
-    sa.Column('role_id', sa.String(length=36), nullable=True),
-    sa.Column('workspace_id', sa.String(length=36), nullable=True),
-    sa.Column('status', sa.Enum('ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING', name='userstatus'), nullable=False),
-    sa.Column('is_active', sa.Boolean(), nullable=True),
-    sa.Column('is_verified', sa.Boolean(), nullable=True),
-    sa.Column('preferences', sa.JSON(), nullable=True),
-    sa.Column('language', sa.String(length=10), nullable=True),
-    sa.Column('timezone', sa.String(length=50), nullable=True),
-    sa.Column('last_login_at', sa.String(length=50), nullable=True),
-    sa.Column('last_login_ip', sa.String(length=50), nullable=True),
-    sa.Column('failed_login_attempts', sa.String(length=10), nullable=True),
-    sa.Column('meta', sa.JSON(), nullable=True),
+    sa.Column('email', sa.String(), nullable=False),
+    sa.Column('password', sa.String(), nullable=False),
+    sa.Column('name', sa.String(), nullable=True),
+    sa.Column('role', sa.String(), nullable=True),
+    sa.Column('status', sa.Enum('ACTIVE', 'INACTIVE', 'PENDING', 'SUSPENDED', name='userstatus'), nullable=True),
+    sa.Column('tenant_id', sa.String(), nullable=True),
+    sa.Column('last_login', sa.DateTime(), nullable=True),
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
-    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
-    sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ),
-    sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-    op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
     op.create_table('apps',
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
@@ -181,6 +145,25 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['created_by'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('role_permissions',
+    sa.Column('role_id', sa.String(length=36), nullable=False),
+    sa.Column('permission_id', sa.String(length=36), nullable=False),
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
+    sa.ForeignKeyConstraint(['permission_id'], ['permissions.id'], ),
+    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_table('workspaces',
+    sa.Column('name', sa.String(), nullable=False),
+    sa.Column('tenant_id', sa.String(), nullable=False),
+    sa.Column('id', sa.String(length=36), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('updated_at', sa.DateTime(), nullable=False),
     sa.ForeignKeyConstraint(['tenant_id'], ['tenants.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -389,13 +372,12 @@ def downgrade() -> None:
     op.drop_table('app_model_configs')
     op.drop_index(op.f('ix_api_tokens_token'), table_name='api_tokens')
     op.drop_table('api_tokens')
+    op.drop_table('workspaces')
+    op.drop_table('role_permissions')
     op.drop_table('datasets')
     op.drop_table('apps')
-    op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_table('users')
-    op.drop_table('role_permissions')
-    op.drop_table('workspaces')
     op.drop_table('tools')
     op.drop_table('tool_providers')
     op.drop_index(op.f('ix_tenants_slug'), table_name='tenants')

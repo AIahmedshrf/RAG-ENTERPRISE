@@ -1,26 +1,20 @@
 """
-Workspace Model
+Workspace Model - Fixed
 """
-from sqlalchemy import Column, String, Boolean, JSON
+from sqlalchemy import Column, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
+from datetime import datetime
 from .base import BaseModel
 
 
 class Workspace(BaseModel):
-    """Workspace model for backward compatibility"""
-    __tablename__ = 'workspaces'
+    __tablename__ = "workspaces"
 
-    name = Column(String(255), nullable=False)
-    description = Column(String(500))
+    name = Column(String, nullable=False)
+    tenant_id = Column(String, ForeignKey('tenants.id'), nullable=False)
     
-    # Status
-    is_active = Column(Boolean, default=True)
+    # Relationships (without members - will be accessed through User.tenant_id)
+    # members relationship removed to fix the error
     
-    # Settings
-    settings = Column(JSON, default={})
-    
-    # Relationships
-    members = relationship("User", back_populates="workspace")
-
     def __repr__(self):
-        return f"<Workspace(id={self.id}, name={self.name})>"
+        return f"<Workspace {self.name}>"
