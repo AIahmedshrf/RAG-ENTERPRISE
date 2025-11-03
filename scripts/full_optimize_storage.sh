@@ -16,40 +16,29 @@ df -h | grep -E "Filesystem|/workspaces"
 echo ""
 echo "⏳ بدء التحسين..."
 
+# 1. Load environment variables
+source .envrc
+
+# 2. Create /tmp directories
+mkdir -p /tmp/rag-enterprise/{venv,storage,logs,node_modules}
+mkdir -p /tmp/cache/{pip,npm,huggingface,torch,transformers}
+
 # 2. إيقاف API
-./stop_api.sh 2>/dev/null || kill $(cat api.pid) 2>/dev/null || true
+#./stop_api.sh 2>/dev/null || kill $(cat api.pid) 2>/dev/null || true
 
 # 3. نسخ venv الحالي إلى /tmp (للحفاظ على الحزم المثبتة)
-echo ""
-echo "1️⃣ نقل Python venv إلى /tmp..."
-
-if [ -d "venv" ]; then
-    # حفظ requirements أولاً
-    source venv/bin/activate
-    pip freeze > requirements_frozen.txt
-    deactivate
+# 3. Recreate Python venv
+if [ ! -d "venv" ] || [ ! -L "venv" ]; then
+    echo "📦 Creating Python venv..."
+    python3 -m venv /tmp/rag-enterprise/venv
+    ln -sfn /tmp/rag-enterprise/venv venv
     
-    # حذف venv القديم
-    rm -rf venv
+    source venv/bin/activate
+    pip install -q --upgrade pip
+    pip install -q -r requirements.txt
+    echo "✅ Python venv restored"
 fi
 
-# إنشاء venv جديد في /tmp
-python3 -m venv /tmp/rag-enterprise/venv
-
-# إنشاء symbolic link
-ln -sfn /tmp/rag-enterprise/venv venv
-
-echo "✅ venv -> /tmp/rag-enterprise/venv"
-
-# تفعيل البيئة الجديدة
-source venv/bin/activate
-
-# إعادة تثبيت الحزم بسرعة
-echo "📦 إعادة تثبيت الحزم..."
-pip install -q --upgrade pip
-pip install -q -r requirements.txt
-
-echo "✅ Python environment في /tmp"
 
 #المرحلة B: نقل node_modules إلى /tmp
 

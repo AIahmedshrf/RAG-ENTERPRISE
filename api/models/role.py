@@ -1,54 +1,58 @@
 """
-Role and Permission Models for RBAC
+Role and Permission Models - Simplified
 """
-from sqlalchemy import Column, String, Boolean, ForeignKey
+from sqlalchemy import Column, String, Boolean, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from .base import BaseModel
 
+# Association table for role-permission many-to-many relationship
+role_permissions = Table(
+    'role_permissions',
+    BaseModel.metadata,
+    Column('role_id', String, ForeignKey('roles.id'), primary_key=True),
+    Column('permission_id', String, ForeignKey('permissions.id'), primary_key=True)
+)
+
 
 class Role(BaseModel):
-    """Role model for RBAC"""
-    __tablename__ = 'roles'
+    __tablename__ = "roles"
 
-    name = Column(String(100), nullable=False, unique=True)
-    display_name = Column(String(255), nullable=False)
-    description = Column(String(500))
-    is_system = Column(Boolean, default=False)
+    name = Column(String, unique=True, nullable=False)
+    description = Column(String)
     
-    # Relationships
-    permissions = relationship("RolePermission", back_populates="role", cascade="all, delete-orphan")
-    users = relationship("User", back_populates="role")
-
+    # Permissions relationship only (removed users relationship)
+    permissions = relationship(
+        "Permission",
+        secondary=role_permissions,
+        back_populates="roles"
+    )
+    
     def __repr__(self):
-        return f"<Role(id={self.id}, name={self.name})>"
+        return f"<Role {self.name}>"
 
 
 class Permission(BaseModel):
-    """Permission model"""
-    __tablename__ = 'permissions'
+    __tablename__ = "permissions"
 
-    name = Column(String(100), nullable=False, unique=True)
-    resource = Column(String(100), nullable=False)
-    action = Column(String(50), nullable=False)
-    description = Column(String(500))
+    name = Column(String, unique=True, nullable=False)
+    description = Column(String)
+    resource = Column(String)
+    action = Column(String)
     
-    # Relationships
-    roles = relationship("RolePermission", back_populates="permission")
-
+    # Roles relationship
+    roles = relationship(
+        "Role",
+        secondary=role_permissions,
+        back_populates="permissions"
+    )
+    
     def __repr__(self):
-        return f"<Permission(id={self.id}, name={self.name})>"
+        return f"<Permission {self.name}>"
 
 
+# Deprecated - using association table instead
 class RolePermission(BaseModel):
-    """Many-to-many relationship between roles and permissions"""
-    __tablename__ = 'role_permissions'
-
-    role_id = Column(String(36), ForeignKey('roles.id'), nullable=False)
-    permission_id = Column(String(36), ForeignKey('permissions.id'), nullable=False)
+    __tablename__ = "role_permission_deprecated"
     
-    # Relationships
-    role = relationship("Role", back_populates="permissions")
-    permission = relationship("Permission", back_populates="roles")
-
-    def __repr__(self):
-        return f"<RolePermission(role_id={self.role_id}, permission_id={self.permission_id})>"
+    role_id = Column(String)
+    permission_id = Column(String)

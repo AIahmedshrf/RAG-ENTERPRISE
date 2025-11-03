@@ -1,68 +1,30 @@
 """
-Workflow and WorkflowNode Models
+Workflow and WorkflowNode Models - Simplified
 """
-from sqlalchemy import Column, String, JSON, ForeignKey, Text, Integer, Boolean
-from sqlalchemy.orm import relationship
-from .base import BaseModel, TenantMixin
+from sqlalchemy import Column, String, Text, JSON
+from .base import BaseModel
 
 
-class Workflow(BaseModel, TenantMixin):
-    """Workflow model"""
-    __tablename__ = 'workflows'
+class Workflow(BaseModel):
+    __tablename__ = "workflows"
 
-    # Basic info
-    name = Column(String(255), nullable=False)
-    description = Column(Text)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    tenant_id = Column(String, nullable=True)
+    graph = Column(JSON, nullable=True)
     
-    # App context
-    app_id = Column(String(36), ForeignKey('apps.id'))
-    
-    # Version
-    version = Column(String(50), default='1.0')
-    
-    # Status
-    is_published = Column(Boolean, default=False)
-    is_default = Column(Boolean, default=False)
-    
-    # Graph
-    graph = Column(JSON, default={})
-    features = Column(JSON, default={})
-    
-    # Environment variables
-    environment_variables = Column(JSON, default=[])
-    
-    # Statistics
-    run_count = Column(Integer, default=0)
-    
-    # Relationships
-    tenant_id = Column(String(36), ForeignKey('tenants.id'), nullable=False)
-    created_by = Column(String(36), ForeignKey('users.id'))
-    
-    nodes = relationship("WorkflowNode", back_populates="workflow", cascade="all, delete-orphan")
-
     def __repr__(self):
-        return f"<Workflow(id={self.id}, name={self.name}, version={self.version})>"
+        return f"<Workflow {self.name}>"
 
 
 class WorkflowNode(BaseModel):
-    """Workflow node model"""
-    __tablename__ = 'workflow_nodes'
+    __tablename__ = "workflow_nodes"
 
-    workflow_id = Column(String(36), ForeignKey('workflows.id'), nullable=False)
+    workflow_id = Column(String, nullable=False)
+    node_type = Column(String, nullable=False)
+    config = Column(JSON, nullable=True)
+    position_x = Column(String, nullable=True)
+    position_y = Column(String, nullable=True)
     
-    # Node info
-    title = Column(String(255), nullable=False)
-    node_type = Column(String(100), nullable=False)
-    
-    # Position
-    position_x = Column(Integer, default=0)
-    position_y = Column(Integer, default=0)
-    
-    # Configuration
-    config = Column(JSON, default={})
-    
-    # Relationships
-    workflow = relationship("Workflow", back_populates="nodes")
-
     def __repr__(self):
-        return f"<WorkflowNode(id={self.id}, workflow_id={self.workflow_id}, type={self.node_type})>"
+        return f"<WorkflowNode {self.workflow_id}:{self.node_type}>"
