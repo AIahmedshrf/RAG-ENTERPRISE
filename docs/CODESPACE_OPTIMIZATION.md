@@ -169,3 +169,8 @@ ls -lah /workspaces/RAG-ENTERPRISE/ | grep "^l"
 
 echo ""
 echo "✅ التحسين اكتمل!"
+
+
+#بعد التنفيذ، تأكد من أن الرابط أُنشئ بنجاح:
+
+ls -l frontend | grep node_modules
