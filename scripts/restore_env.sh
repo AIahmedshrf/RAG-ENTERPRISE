@@ -52,7 +52,3 @@ if [ ! -f "rag_enterprise.db" ]; then
     python scripts/init_db.py
 fi
 
-echo ""
-echo "✅ Environment restored successfully!"
-echo ""
-echo "🚀 To start API: ./start_api.sh"
