@@ -174,3 +174,7 @@ echo "✅ التحسين اكتمل!"
 #بعد التنفيذ، تأكد من أن الرابط أُنشئ بنجاح:
 
 ls -l frontend | grep node_modules
+# عندما لايعمل frontend
+tail -50 /tmp/frontend.log
+pkill -f "next dev"
+cd frontend && npm run dev

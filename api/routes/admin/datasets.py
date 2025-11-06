@@ -1,10 +1,11 @@
 """
-Admin Dataset Management - Fixed Response Format
+Admin Dataset Management - Fixed with JSON body support
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime
+from pydantic import BaseModel
 import uuid
 
 from api.database import get_db
@@ -14,6 +15,18 @@ from api.models.user import User
 from core.auth import get_current_user, require_admin
 
 router = APIRouter()
+
+
+# Pydantic Models
+class CreateDatasetRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    indexing_technique: str = "high_quality"
+
+
+class UpdateDatasetRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 
 @router.get("", response_model=dict)
@@ -34,21 +47,20 @@ async def list_datasets(
         total = query.count()
         datasets = query.offset(offset).limit(limit).all()
         
-        dataset_list = []
-        for dataset in datasets:
-            dataset_list.append({
-                "id": dataset.id,
-                "name": dataset.name,
-                "description": dataset.description,
-                "indexing_technique": dataset.indexing_technique,
-                "tenant_id": dataset.tenant_id,
-                "created_by": dataset.created_by,
-                "created_at": dataset.created_at.isoformat() if dataset.created_at else None,
-                "updated_at": dataset.updated_at.isoformat() if dataset.updated_at else None,
-            })
-        
         return {
-            "data": dataset_list,
+            "data": [
+                {
+                    "id": dataset.id,
+                    "name": dataset.name,
+                    "description": dataset.description,
+                    "indexing_technique": dataset.indexing_technique,
+                    "tenant_id": dataset.tenant_id,
+                    "created_by": dataset.created_by,
+                    "created_at": dataset.created_at.isoformat() if dataset.created_at else None,
+                    "updated_at": dataset.updated_at.isoformat() if dataset.updated_at else None,
+                }
+                for dataset in datasets
+            ],
             "total": total,
             "page": page,
             "limit": limit,
@@ -64,30 +76,28 @@ async def list_datasets(
 
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_dataset(
-    name: str,
-    description: Optional[str] = None,
-    indexing_technique: str = "high_quality",
+    request: CreateDatasetRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """Create a new dataset"""
     try:
         existing = db.query(Dataset).filter(
-            Dataset.name == name,
+            Dataset.name == request.name,
             Dataset.tenant_id == current_user.tenant_id
         ).first()
         
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Dataset with name '{name}' already exists"
+                detail=f"Dataset with name '{request.name}' already exists"
             )
         
         dataset = Dataset(
             id=str(uuid.uuid4()),
-            name=name,
-            description=description,
-            indexing_technique=indexing_technique,
+            name=request.name,
+            description=request.description,
+            indexing_technique=request.indexing_technique,
             tenant_id=current_user.tenant_id,
             created_by=current_user.id
         )
@@ -162,8 +172,7 @@ async def get_dataset(
 @router.put("/{dataset_id}", response_model=dict)
 async def update_dataset(
     dataset_id: str,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
+    request: UpdateDatasetRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -180,10 +189,10 @@ async def update_dataset(
                 detail="Dataset not found"
             )
         
-        if name:
-            dataset.name = name
-        if description:
-            dataset.description = description
+        if request.name:
+            dataset.name = request.name
+        if request.description:
+            dataset.description = request.description
         
         dataset.updated_at = datetime.utcnow()
         
