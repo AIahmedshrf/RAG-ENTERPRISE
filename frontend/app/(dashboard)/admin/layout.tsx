@@ -1,15 +1,14 @@
 'use client';
 
-import React from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/app/contexts/auth-context';
-import { ProtectedRoute } from '@/app/components/auth/protected-route';
+import { useEffect } from 'react';
 
 const navigation = [
   { name: 'Overview', href: '/admin', icon: '📊' },
   { name: 'Applications', href: '/admin/apps', icon: '🚀' },
   { name: 'Knowledge Base', href: '/admin/datasets', icon: '📚' },
+  { name: 'AI Models', href: '/admin/models', icon: '🤖' },
   { name: 'Users', href: '/admin/users', icon: '👥' },
   { name: 'Workspace', href: '/admin/workspace', icon: '⚙️' },
   { name: 'Analytics', href: '/admin/analytics', icon: '📈' },
@@ -21,72 +20,73 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
 
+  useEffect(() => {
+    if (user && user.role !== 'admin') {
+      router.push('/home');
+    }
+  }, [user, router]);
+
+  if (!user || user.role !== 'admin') {
+    return null;
+  }
+
   return (
-    <ProtectedRoute requireAdmin={true}>
-      <div className="flex h-screen bg-gray-50">
-        <div className="w-64 bg-white border-r border-gray-200">
-          <div className="h-16 flex items-center px-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">RAG Admin</h1>
+    <div className="min-h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
+        <div className="flex flex-col h-full">
+          {/* Logo */}
+          <div className="p-4 border-b">
+            <h1 className="text-xl font-bold text-blue-600">RAG-ENTERPRISE</h1>
+            <p className="text-xs text-gray-500 mt-1">Admin Panel</p>
           </div>
 
-          <nav className="p-4 space-y-1">
+          {/* Navigation */}
+          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || 
+                (item.href !== '/admin' && pathname.startsWith(item.href));
+              
               return (
-                <Link
+                <button
                   key={item.name}
-                  href={item.href}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors
-                    ${isActive 
-                      ? 'bg-blue-50 text-blue-700' 
+                  onClick={() => router.push(item.href)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-50'
-                    }
-                  `}
+                  }`}
                 >
-                  <span className="text-xl">{item.icon}</span>
-                  {item.name}
-                </Link>
+                  <span className="text-lg">{item.icon}</span>
+                  <span>{item.name}</span>
+                </button>
               );
             })}
-            
-            <Link
-              href="/home"
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 mt-4"
-            >
-              <span className="text-xl">👤</span>
-              Client View
-            </Link>
           </nav>
-        </div>
 
-        <div className="flex-1 overflow-auto">
-          <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8">
-            <h2 className="text-lg font-semibold text-gray-900">Admin Dashboard</h2>
-            
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                  {user?.name?.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-sm font-medium">{user?.name}</span>
-              </div>
-              <button 
-                onClick={logout}
-                className="text-sm text-red-600 hover:text-red-800"
-              >
-                Logout
-              </button>
+          {/* User Info */}
+          <div className="p-4 border-t">
+            <div className="mb-3">
+              <p className="text-sm font-medium text-gray-900">{user.name}</p>
+              <p className="text-xs text-gray-500">{user.email}</p>
             </div>
-          </header>
-
-          <main className="p-8">
-            {children}
-          </main>
+            <button
+              onClick={logout}
+              className="w-full px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm font-medium"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
-    </ProtectedRoute>
+
+      {/* Main Content */}
+      <div className="ml-64">
+        {children}
+      </div>
+    </div>
   );
 }

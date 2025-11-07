@@ -7,6 +7,7 @@ from .base import BaseModel
 
 class Workflow(BaseModel):
     __tablename__ = "workflows"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -19,6 +20,7 @@ class Workflow(BaseModel):
 
 class WorkflowNode(BaseModel):
     __tablename__ = "workflow_nodes"
+    __table_args__ = {'extend_existing': True}
 
     workflow_id = Column(String, nullable=False)
     node_type = Column(String, nullable=False)

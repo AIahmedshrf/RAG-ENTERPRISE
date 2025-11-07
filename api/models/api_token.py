@@ -13,6 +13,7 @@ class TokenType(str, enum.Enum):
 
 class ApiToken(BaseModel):
     __tablename__ = "api_tokens"
+    __table_args__ = {'extend_existing': True}
 
     token = Column(String, unique=True, nullable=False)
     type = Column(SQLEnum(TokenType), nullable=False)

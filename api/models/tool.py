@@ -14,6 +14,7 @@ class ToolType(str, enum.Enum):
 
 class Tool(BaseModel):
     __tablename__ = "tools"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, nullable=False)
     type = Column(SQLEnum(ToolType), nullable=False)
@@ -27,6 +28,7 @@ class Tool(BaseModel):
 
 class ToolProvider(BaseModel):
     __tablename__ = "tool_providers"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, nullable=False)
     credentials = Column(JSON, nullable=True)

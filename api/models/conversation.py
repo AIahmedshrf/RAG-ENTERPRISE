@@ -14,6 +14,7 @@ class ConversationStatus(str, enum.Enum):
 
 class Conversation(BaseModel):
     __tablename__ = "conversations"
+    __table_args__ = {'extend_existing': True}
 
     app_id = Column(String, nullable=False)
     user_id = Column(String, nullable=True)

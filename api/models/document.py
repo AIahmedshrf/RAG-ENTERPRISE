@@ -34,6 +34,7 @@ class DocumentType(str, enum.Enum):
 
 class Document(BaseModel):
     __tablename__ = "documents"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, nullable=False)
     type = Column(SQLEnum(DocumentType), nullable=False)
@@ -50,6 +51,7 @@ class Document(BaseModel):
 
 class DocumentSegment(BaseModel):
     __tablename__ = "document_segments"
+    __table_args__ = {'extend_existing': True}
 
     document_id = Column(String, nullable=False)
     position = Column(Integer, nullable=False)

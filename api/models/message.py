@@ -7,6 +7,7 @@ from .base import BaseModel
 
 class Message(BaseModel):
     __tablename__ = "messages"
+    __table_args__ = {'extend_existing': True}
 
     conversation_id = Column(String, nullable=False)
     query = Column(Text, nullable=False)
@@ -19,6 +20,7 @@ class Message(BaseModel):
 
 class MessageFeedback(BaseModel):
     __tablename__ = "message_feedbacks"
+    __table_args__ = {'extend_existing': True}
 
     message_id = Column(String, nullable=False)
     rating = Column(Float, nullable=True)

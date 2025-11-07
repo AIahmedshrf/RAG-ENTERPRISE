@@ -16,6 +16,7 @@ class UserStatus(str, enum.Enum):
 
 class User(BaseModel):
     __tablename__ = "users"
+    __table_args__ = {'extend_existing': True}
 
     email = Column(String, unique=True, index=True, nullable=False)
     password = Column(String, nullable=False)

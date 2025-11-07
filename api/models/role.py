@@ -16,6 +16,7 @@ role_permissions = Table(
 
 class Role(BaseModel):
     __tablename__ = "roles"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, unique=True, nullable=False)
     description = Column(String)
@@ -33,6 +34,7 @@ class Role(BaseModel):
 
 class Permission(BaseModel):
     __tablename__ = "permissions"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, unique=True, nullable=False)
     description = Column(String)
@@ -53,6 +55,7 @@ class Permission(BaseModel):
 # Deprecated - using association table instead
 class RolePermission(BaseModel):
     __tablename__ = "role_permission_deprecated"
+    __table_args__ = {'extend_existing': True}
     
     role_id = Column(String)
     permission_id = Column(String)

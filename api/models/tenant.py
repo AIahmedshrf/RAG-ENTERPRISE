@@ -7,6 +7,7 @@ from .base import BaseModel
 
 class Tenant(BaseModel):
     __tablename__ = "tenants"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, nullable=False)
     plan = Column(String, default="free")

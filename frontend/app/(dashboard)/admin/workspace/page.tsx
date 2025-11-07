@@ -1,96 +1,132 @@
-// Workspace Settings Page
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Button } from '@/app/components/ui/button';
-import { Input } from '@/app/components/ui/input';
+import { useState, useEffect } from 'react';
+
+interface WorkspaceInfo {
+  id: string;
+  name: string;
+  tenant_id: string;
+  member_count: number;
+}
 
 export default function WorkspacePage() {
-  const [workspace, setWorkspace] = useState({
-    name: '',
-    id: '',
-  });
+  const [workspace, setWorkspace] = useState<WorkspaceInfo | null>(null);
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    loadWorkspace();
+    fetchWorkspace();
   }, []);
 
-  const loadWorkspace = async () => {
+  const fetchWorkspace = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/v1/admin/workspace');
-      const data = await response.json();
-      setWorkspace(data);
+      const token = localStorage.getItem('access_token');
+      const response = await fetch('http://localhost:8000/api/v1/admin/workspace', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setWorkspace(data);
+        setName(data.name);
+      }
     } catch (error) {
-      console.error('Failed to load workspace:', error);
+      console.error('Error fetching workspace:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!name.trim()) {
+      alert('Please enter a workspace name');
+      return;
+    }
+
     try {
-      await fetch('/api/v1/admin/workspace', {
+      setSaving(true);
+      const token = localStorage.getItem('access_token');
+      
+      const response = await fetch('http://localhost:8000/api/v1/admin/workspace', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: workspace.name }),
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name }),
       });
-      alert('Workspace updated successfully');
-    } catch (error) {
-      console.error('Failed to update workspace:', error);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to update workspace');
+      }
+
+      const updatedWorkspace = await response.json();
+      setWorkspace(updatedWorkspace);
+      alert('✅ Workspace updated successfully!');
+    } catch (error: any) {
+      alert(`❌ Error: ${error.message}`);
+    } finally {
+      setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="flex justify-center p-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Workspace Settings</h1>
-        <p className="mt-2 text-gray-600">Configure your workspace settings</p>
-      </div>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">⚙️ Workspace Settings</h1>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-6">
-        <div>
-          <h3 className="text-lg font-semibold mb-4">General Settings</h3>
-          <div className="space-y-4 max-w-xl">
-            <Input
-              label="Workspace Name"
-              value={workspace.name}
-              onChange={(e) => setWorkspace({ ...workspace, name: e.target.value })}
-              placeholder="Enter workspace name"
-            />
-            
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Workspace ID
-              </label>
-              <p className="text-sm text-gray-600 font-mono bg-gray-50 p-2 rounded">
-                {workspace.id}
-              </p>
-            </div>
+      {workspace && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-sm text-gray-600">Workspace ID</p>
+            <p className="text-sm font-mono text-gray-900 mt-1">{workspace.id.slice(0, 8)}...</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-sm text-gray-600">Team Members</p>
+            <p className="text-2xl font-bold text-gray-900">{workspace.member_count}</p>
+          </div>
+          <div className="bg-white p-4 rounded-lg shadow">
+            <p className="text-sm text-gray-600">Status</p>
+            <p className="text-sm font-semibold text-green-600 mt-1">Active</p>
           </div>
         </div>
+      )}
 
-        <div className="flex justify-end">
-          <Button onClick={handleSave}>
-            Save Changes
-          </Button>
-        </div>
-      </div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">General Settings</h2>
+        <form onSubmit={handleSave}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Workspace Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="My Workspace"
+            />
+          </div>
 
-      {/* Danger Zone */}
-      <div className="bg-white rounded-lg border border-red-200 p-6">
-        <h3 className="text-lg font-semibold text-red-900 mb-2">Danger Zone</h3>
-        <p className="text-sm text-gray-600 mb-4">
-          These actions are irreversible. Please be careful.
-        </p>
-        <Button variant="danger">
-          Delete Workspace
-        </Button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400"
+          >
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </form>
       </div>
     </div>
   );

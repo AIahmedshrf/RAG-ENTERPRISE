@@ -15,6 +15,7 @@ class AppMode(str, enum.Enum):
 
 class App(BaseModel):
     __tablename__ = "apps"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, nullable=False)
     mode = Column(SQLEnum(AppMode), nullable=False)
@@ -30,6 +31,7 @@ class App(BaseModel):
 
 class AppModelConfig(BaseModel):
     __tablename__ = "app_model_configs"
+    __table_args__ = {'extend_existing': True}
 
     app_id = Column(String, nullable=False)
     provider = Column(String)

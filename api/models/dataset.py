@@ -13,6 +13,7 @@ class IndexingTechnique(str, enum.Enum):
 
 class Dataset(BaseModel):
     __tablename__ = "datasets"
+    __table_args__ = {'extend_existing': True}
 
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)

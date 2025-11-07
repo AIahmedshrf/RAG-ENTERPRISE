@@ -1,10 +1,11 @@
 """
-Admin Workspace Management - Fixed with Error Handling
+Admin Workspace Management - Fixed with JSON body
 """
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import Optional, Dict, Any
 from datetime import datetime
+from pydantic import BaseModel, EmailStr
 import uuid
 
 from api.database import get_db
@@ -13,6 +14,21 @@ from api.models.user import User
 from core.auth import get_current_user, require_admin
 
 router = APIRouter()
+
+
+# Pydantic Models
+class UpdateWorkspaceRequest(BaseModel):
+    name: Optional[str] = None
+
+
+class InviteMemberRequest(BaseModel):
+    email: EmailStr
+    role: str = "user"
+    name: str
+
+
+class UpdateWorkspaceSettingsRequest(BaseModel):
+    settings: Dict[str, Any]
 
 
 @router.get("", response_model=dict)
@@ -58,7 +74,7 @@ async def get_workspace(
 
 @router.put("", response_model=dict)
 async def update_workspace(
-    name: Optional[str] = None,
+    request: UpdateWorkspaceRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -74,8 +90,8 @@ async def update_workspace(
                 detail="Workspace not found"
             )
         
-        if name:
-            workspace.name = name
+        if request.name:
+            workspace.name = request.name
         
         workspace.updated_at = datetime.utcnow()
         
@@ -145,36 +161,37 @@ async def list_workspace_members(
 
 @router.post("/members/invite", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def invite_member(
-    email: str,
-    role: str = "user",
-    name: Optional[str] = None,
+    request: InviteMemberRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
     """Invite a new member to workspace"""
     try:
-        existing = db.query(User).filter(User.email == email).first()
+        # Check if user already exists
+        existing = db.query(User).filter(User.email == request.email).first()
         if existing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User with this email already exists"
             )
         
+        # Validate role
         valid_roles = ["admin", "user", "viewer"]
-        if role not in valid_roles:
+        if request.role not in valid_roles:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Invalid role. Must be one of: {', '.join(valid_roles)}"
             )
         
+        # Create user
         from core.auth import get_password_hash
         
         new_user = User(
             id=str(uuid.uuid4()),
-            email=email,
-            name=name or email.split('@')[0],
+            email=request.email,
+            name=request.name,
             password=get_password_hash("temporary123"),
-            role=role,
+            role=request.role,
             status="active",
             tenant_id=current_user.tenant_id
         )
@@ -186,6 +203,7 @@ async def invite_member(
         return {
             "id": new_user.id,
             "email": new_user.email,
+            "name": new_user.name,
             "role": new_user.role,
             "message": "Member invited successfully. Temporary password: temporary123"
         }
@@ -279,7 +297,7 @@ async def get_workspace_settings(
 
 @router.put("/settings", response_model=dict)
 async def update_workspace_settings(
-    settings: Dict[str, Any],
+    request: UpdateWorkspaceSettingsRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_admin)
 ):
@@ -297,7 +315,7 @@ async def update_workspace_settings(
         
         return {
             "workspace_id": workspace.id,
-            "settings": settings,
+            "settings": request.settings,
             "message": "Settings updated successfully"
         }
     except HTTPException:

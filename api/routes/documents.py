@@ -1,177 +1,259 @@
 """
-Document Management Routes
+Document Management Routes - Complete System
 """
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import uuid
 import os
-import aiofiles
 from datetime import datetime
+import mimetypes
 
 from api.database import get_db
-from api.models.document import Document, DocumentType, DocumentStatus
+from api.models.document import Document, DocumentStatus
+from api.models.dataset import Dataset
 from api.models.user import User
 from core.auth import get_current_user
-from utilities.storage import get_storage_path
+from utilities.storage import save_upload_file
 
 router = APIRouter()
 
-# File type mapping
-FILE_TYPE_MAPPING = {
-    '.txt': DocumentType.TXT,
-    '.pdf': DocumentType.PDF,
-    '.doc': DocumentType.DOC,
-    '.docx': DocumentType.DOCX,
-    '.xls': DocumentType.XLS,
-    '.xlsx': DocumentType.XLSX,
-    '.csv': DocumentType.CSV,
-    '.json': DocumentType.JSON,
-    '.md': DocumentType.MD,
-    '.html': DocumentType.HTML,
-    '.xml': DocumentType.XML,
-}
+# Allowed file types
+ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.docx', '.doc', '.md', '.csv', '.json'}
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 
-@router.post("/documents/upload")
+@router.post("/upload", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     file: UploadFile = File(...),
-    dataset_id: Optional[str] = None,
+    dataset_id: str = Form(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Upload a document
-    """
-    # Get file extension
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    
-    # Check if supported
-    if file_ext not in FILE_TYPE_MAPPING:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Unsupported file type: {file_ext}"
-        )
-    
-    # Create document record
-    document = Document(
-        name=file.filename,
-        type=FILE_TYPE_MAPPING[file_ext],
-        dataset_id=dataset_id or "default",
-        status=DocumentStatus.UPLOADING,
-        created_by=current_user.id
-    )
-    
-    db.add(document)
-    db.commit()
-    db.refresh(document)
-    
-    # Save file
+    """Upload a document to a dataset"""
     try:
-        storage_path = get_storage_path()
-        file_path = os.path.join(storage_path, f"{document.id}_{file.filename}")
+        # Validate dataset
+        dataset = db.query(Dataset).filter(
+            Dataset.id == dataset_id,
+            Dataset.tenant_id == current_user.tenant_id
+        ).first()
         
-        async with aiofiles.open(file_path, 'wb') as f:
-            content = await file.read()
-            await f.write(content)
+        if not dataset:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Dataset not found"
+            )
         
-        # Update document
-        document.file_path = file_path
-        document.status = DocumentStatus.COMPLETED
+        # Validate file extension
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        if file_ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File type not allowed. Allowed: {', '.join(ALLOWED_EXTENSIONS)}"
+            )
+        
+        # Read file content
+        content = await file.read()
+        file_size = len(content)
+        
+        # Validate file size
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File too large. Max size: {MAX_FILE_SIZE / 1024 / 1024}MB"
+            )
+        
+        # Save file
+        file_path = save_upload_file(content, file.filename)
+        
+        # Create document record
+        document = Document(
+            id=str(uuid.uuid4()),
+            dataset_id=dataset_id,
+            name=file.filename,
+            file_path=file_path,
+            file_type=file_ext,
+            file_size=file_size,
+            status=DocumentStatus.PENDING,
+            tenant_id=current_user.tenant_id,
+            created_by=current_user.id
+        )
+        
+        db.add(document)
         db.commit()
+        db.refresh(document)
+        
+        # TODO: Trigger async processing
+        # For now, we'll process synchronously
+        from document_processing.processors.base_processor import process_document
+        
+        try:
+            # Process document
+            result = process_document(document.id, file_path, file_ext, db)
+            
+            # Update status
+            document.status = DocumentStatus.COMPLETED
+            document.chunk_count = result.get('chunk_count', 0)
+            document.word_count = result.get('word_count', 0)
+            db.commit()
+            
+        except Exception as e:
+            print(f"Processing error: {e}")
+            document.status = DocumentStatus.FAILED
+            document.error_message = str(e)
+            db.commit()
         
         return {
             "id": document.id,
             "name": document.name,
-            "type": document.type,
+            "dataset_id": dataset_id,
             "status": document.status,
-            "created_at": document.created_at.isoformat()
+            "file_size": file_size,
+            "created_at": document.created_at.isoformat() if document.created_at else None,
+            "message": "Document uploaded and processing started"
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
-        document.status = DocumentStatus.ERROR
-        db.commit()
+        print(f"Upload error: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to save file: {str(e)}"
+            detail=f"Failed to upload document: {str(e)}"
         )
 
 
-@router.get("/documents")
+@router.get("", response_model=dict)
 async def list_documents(
     dataset_id: Optional[str] = None,
-    skip: int = 0,
+    page: int = 1,
     limit: int = 20,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """List documents"""
-    query = db.query(Document)
-    
-    if dataset_id:
-        query = query.filter(Document.dataset_id == dataset_id)
-    
-    documents = query.offset(skip).limit(limit).all()
-    
-    return [
-        {
-            "id": doc.id,
-            "name": doc.name,
-            "type": doc.type,
-            "status": doc.status,
-            "word_count": doc.word_count,
-            "created_at": doc.created_at.isoformat()
+    try:
+        offset = (page - 1) * limit
+        
+        query = db.query(Document).filter(
+            Document.tenant_id == current_user.tenant_id
+        )
+        
+        if dataset_id:
+            query = query.filter(Document.dataset_id == dataset_id)
+        
+        total = query.count()
+        documents = query.order_by(Document.created_at.desc()).offset(offset).limit(limit).all()
+        
+        return {
+            "data": [
+                {
+                    "id": doc.id,
+                    "name": doc.name,
+                    "dataset_id": doc.dataset_id,
+                    "status": doc.status,
+                    "file_type": doc.file_type,
+                    "file_size": doc.file_size,
+                    "chunk_count": doc.chunk_count,
+                    "word_count": doc.word_count,
+                    "created_at": doc.created_at.isoformat() if doc.created_at else None,
+                    "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+                }
+                for doc in documents
+            ],
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "has_more": (offset + limit) < total
         }
-        for doc in documents
-    ]
+    except Exception as e:
+        print(f"List documents error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list documents: {str(e)}"
+        )
 
 
-@router.get("/documents/{document_id}")
+@router.get("/{document_id}", response_model=dict)
 async def get_document(
     document_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """Get document details"""
-    document = db.query(Document).filter(Document.id == document_id).first()
-    
-    if not document:
+    try:
+        document = db.query(Document).filter(
+            Document.id == document_id,
+            Document.tenant_id == current_user.tenant_id
+        ).first()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        return {
+            "id": document.id,
+            "name": document.name,
+            "dataset_id": document.dataset_id,
+            "status": document.status,
+            "file_type": document.file_type,
+            "file_size": document.file_size,
+            "file_path": document.file_path,
+            "chunk_count": document.chunk_count,
+            "word_count": document.word_count,
+            "error_message": document.error_message,
+            "created_at": document.created_at.isoformat() if document.created_at else None,
+            "updated_at": document.updated_at.isoformat() if document.updated_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Get document error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get document: {str(e)}"
         )
-    
-    return {
-        "id": document.id,
-        "name": document.name,
-        "type": document.type,
-        "status": document.status,
-        "word_count": document.word_count,
-        "file_path": document.file_path,
-        "created_at": document.created_at.isoformat()
-    }
 
 
-@router.delete("/documents/{document_id}")
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_document(
     document_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Delete document"""
-    document = db.query(Document).filter(Document.id == document_id).first()
-    
-    if not document:
+    """Delete a document"""
+    try:
+        document = db.query(Document).filter(
+            Document.id == document_id,
+            Document.tenant_id == current_user.tenant_id
+        ).first()
+        
+        if not document:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found"
+            )
+        
+        # Delete file from storage
+        if document.file_path and os.path.exists(document.file_path):
+            try:
+                os.remove(document.file_path)
+            except Exception as e:
+                print(f"Failed to delete file: {e}")
+        
+        # Delete from database
+        db.delete(document)
+        db.commit()
+        
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        print(f"Delete document error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete document: {str(e)}"
         )
-    
-    # Delete file if exists
-    if document.file_path and os.path.exists(document.file_path):
-        os.remove(document.file_path)
-    
-    # Delete from database
-    db.delete(document)
-    db.commit()
-    
-    return {"message": "Document deleted successfully"}
