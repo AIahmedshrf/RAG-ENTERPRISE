@@ -12,6 +12,7 @@ from .document_segment import DocumentSegment
 from .app import App
 from .conversation import Conversation
 from .message import Message
+from .message_feedback import MessageFeedback
 from .tool import Tool
 from .tool_provider import ToolProvider
 from .workflow import Workflow
@@ -29,6 +30,7 @@ __all__ = [
     'App',
     'Conversation',
     'Message',
+    'MessageFeedback',
     'Tool',
     'ToolProvider',
     'Workflow',
