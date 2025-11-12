@@ -1,0 +1,92 @@
+{
+  "backend": {
+    "exists": true,
+    "models": [
+      "api_token",
+      "app",
+      "base",
+      "conversation",
+      "dataset",
+      "document",
+      "document_segment",
+      "message",
+      "message_feedback",
+      "role",
+      "tenant",
+      "tool",
+      "tool_provider",
+      "user",
+      "workflow",
+      "workspace"
+    ],
+    "routes": [
+      "admin",
+      "analytics",
+      "auth",
+      "chat",
+      "conversations",
+      "datasets",
+      "documents",
+      "financial",
+      "health",
+      "tools",
+      "websocket"
+    ]
+  },
+  "frontend": {
+    "exists": true,
+    "name": "rag-enterprise-frontend",
+    "dependencies": [
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-select",
+      "@radix-ui/react-toast",
+      "@radix-ui/react-tooltip",
+      "@types/node",
+      "@types/react",
+      "@types/react-dom",
+      "autoprefixer",
+      "axios",
+      "class-variance-authority",
+      "clsx",
+      "lucide-react",
+      "next",
+      "next-intl",
+      "postcss",
+      "react",
+      "react-dom",
+      "react-markdown",
+      "swr",
+      "tailwind-merge",
+      "tailwindcss",
+      "typescript",
+      "zustand"
+    ],
+    "pages": [
+      "app/page.tsx",
+      "app/error.tsx",
+      "app/layout.tsx",
+      "app/loading.tsx",
+      "app/not-found.tsx",
+      "app/test-components/page.tsx",
+      "app/(client)/page.tsx",
+      "app/(client)/layout.tsx",
+      "app/(auth)/layout.tsx",
+      "app/i18n/i18n-context.tsx"
+    ]
+  },
+  "database": {
+    "files": [],
+    "count": 0
+  },
+  "config": {
+    "requirements.txt": true,
+    ".env": true,
+    "docker-compose.yml": true,
+    "Dockerfile": false
+  },
+  "issues": [],
+  "recommendations": [],
+  "score": "85/100",
+  "timestamp": "2025-11-08T21:08:00.840385"
+}

@@ -29,35 +29,51 @@ export default function AdminOverview() {
   const fetchStats = async () => {
     try {
       const token = localStorage.getItem('access_token');
+      if (!token) {
+        setLoading(false);
+        return;
+      }
       
       const [datasetsRes, appsRes, usersRes, workspaceRes] = await Promise.all([
-        fetch('http://localhost:8000/api/v1/admin/datasets', {
+        fetch('http://localhost:8000/admin/datasets', {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch('http://localhost:8000/api/v1/admin/apps', {
+        fetch('http://localhost:8000/admin/apps', {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch('http://localhost:8000/api/v1/admin/workspace/members', {
+        fetch('http://localhost:8000/admin/workspace/members', {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        fetch('http://localhost:8000/api/v1/admin/workspace', {
+        fetch('http://localhost:8000/admin/workspace', {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
-      const datasets = await datasetsRes.json();
-      const apps = await appsRes.json();
-      const users = await usersRes.json();
-      const workspace = await workspaceRes.json();
+      const datasets = datasetsRes.ok ? await datasetsRes.json() : { total: 0 };
+      const apps = appsRes.ok ? await appsRes.json() : { total: 0 };
+      const users = usersRes.ok ? await usersRes.json() : { total: 0 };
+      const workspace = workspaceRes.ok ? await workspaceRes.json() : { name: 'Workspace' };
+
+      // Ensure workspace is a string
+      const workspaceName = typeof workspace === 'string' 
+        ? workspace 
+        : (workspace?.name || workspace?.title || 'Workspace');
 
       setStats({
-        datasets: datasets.total || 0,
-        apps: apps.total || 0,
-        users: users.total || 0,
-        workspace: workspace.name || ''
+        datasets: datasets?.total || 0,
+        apps: apps?.total || 0,
+        users: users?.total || 0,
+        workspace: workspaceName
       });
     } catch (error) {
       console.error('Error fetching stats:', error);
+      // Set default values on error
+      setStats({
+        datasets: 0,
+        apps: 0,
+        users: 0,
+        workspace: 'Workspace'
+      });
     } finally {
       setLoading(false);
     }

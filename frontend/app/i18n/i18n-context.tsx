@@ -1,11 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState } from 'react';
-import en from './locales/en.json';
-import ar from './locales/ar.json';
+import { createContext, useContext, useState, ReactNode } from 'react';
 
 type Locale = 'en' | 'ar';
-type Translations = typeof en;
 
 interface I18nContextType {
   locale: Locale;
@@ -15,30 +12,31 @@ interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
-const translations: Record<Locale, Translations> = {
-  en,
-  ar,
+const translations: Record<Locale, Record<string, string>> = {
+  en: {
+    'login': 'Login',
+    'email': 'Email',
+    'password': 'Password',
+    'welcome': 'Welcome',
+  },
+  ar: {
+    'login': 'تسجيل الدخول',
+    'email': 'البريد الإلكتروني',
+    'password': 'كلمة المرور',
+    'welcome': 'مرحباً',
+  }
 };
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>('en');
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocale] = useState<Locale>('ar');
 
   const t = (key: string): string => {
-    const keys = key.split('.');
-    let value: any = translations[locale];
-    
-    for (const k of keys) {
-      value = value?.[k];
-    }
-    
-    return value || key;
+    return translations[locale][key] || key;
   };
 
   return (
     <I18nContext.Provider value={{ locale, setLocale, t }}>
-      <div dir={locale === 'ar' ? 'rtl' : 'ltr'}>
-        {children}
-      </div>
+      {children}
     </I18nContext.Provider>
   );
 }

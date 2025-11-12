@@ -1,28 +1,53 @@
 """
-Base Model
-All models inherit from this
+Base Models and Mixins
+Fixed datetime warnings and added BaseModel
 """
+
 from sqlalchemy import Column, String, DateTime
-from sqlalchemy.sql import func
+from sqlalchemy.ext.declarative import declarative_base
+from datetime import datetime, timezone
 import uuid
 
-# Import Base from database - THIS IS CRITICAL
-from api.database import Base
+Base = declarative_base()
 
+class UUIDMixin:
+    """Mixin for UUID primary key"""
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-class BaseModel(Base):
+class TimestampMixin:
+    """Mixin for timestamp columns"""
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+# BaseModel combines Base, UUIDMixin, and TimestampMixin
+class BaseModel(Base, UUIDMixin, TimestampMixin):
     """
-    Base model with common fields
-    All models inherit from this
+    Base model class that includes:
+    - SQLAlchemy Base
+    - UUID primary key
+    - Timestamp columns (created_at, updated_at)
     """
-    __abstract__ = True
+    __abstract__ = True  # This prevents SQLAlchemy from creating a table for BaseModel
     
-    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now(), server_default=func.now())
-
-
-class TenantMixin:
-    """Mixin for tenant isolation"""
-    # This is just a marker, actual tenant_id is in individual models
-    pass
+    def to_dict(self):
+        """Convert model to dictionary"""
+        result = {}
+        for column in self.__table__.columns:
+            value = getattr(self, column.name)
+            if isinstance(value, datetime):
+                result[column.name] = value.isoformat()
+            else:
+                result[column.name] = value
+        return result
+    
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.id}>"

@@ -37,7 +37,7 @@ export function AnalysisForm() {
         query,
         include_ratios: true,
       })
-      setResult(response)
+      setResult(response as AnalysisResult)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ في التحليل')
     } finally {

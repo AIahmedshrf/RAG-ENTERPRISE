@@ -1,95 +1,86 @@
 """
-Authentication Routes - Complete Implementation
-Login, Register, Refresh Token, Logout
+Authentication Routes
+User registration, login, and token management
 """
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr, validator
-from typing import Optional
-from datetime import datetime
+from datetime import timedelta
 
 from api.database import get_db
 from api.models.user import User, UserStatus
+from api.models.tenant import Tenant
 from core.auth import AuthService, get_current_user, get_current_active_user
+from api.schemas.auth import (
+    LoginRequest,
+    LoginResponse,
+    RegisterRequest,
+    RegisterResponse,
+    RefreshRequest,
+    RefreshResponse,
+    UserResponse
+)
 
 router = APIRouter()
 
-
-# Schemas
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-
-class UserRegister(BaseModel):
-    email: EmailStr
-    password: str
-    name: Optional[str] = None
-    
-    @validator('password')
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError('Password must be at least 8 characters')
-        return v
-
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
-    user: dict
-
-
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
-
-
-# === Authentication Endpoints ===
-
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    """Register new user"""
-    # Check if user exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
+@router.post("/register", response_model=RegisterResponse)
+async def register(
+    request: RegisterRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Register a new user
+    """
+    # Check if user already exists
+    existing_user = db.query(User).filter(User.email == request.email).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Email already registered"
         )
     
-    # Create new user
-    new_user = User(
-        email=user_data.email,
-        password=AuthService.get_password_hash(user_data.password),
-        name=user_data.name or user_data.email.split('@')[0],
-        role="user",
-        status=UserStatus.ACTIVE
+    # Get or create default tenant
+    tenant = db.query(Tenant).first()
+    if not tenant:
+        tenant = Tenant(
+            name="Default Tenant",
+            plan="free",
+            status="active"
+        )
+        db.add(tenant)
+        db.commit()
+        db.refresh(tenant)
+    
+    # Create user
+    user = AuthService.create_user(
+        db=db,
+        email=request.email,
+        password=request.password,
+        name=request.name,
+        tenant_id=tenant.id
     )
     
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+    # Create tokens
+    access_token = AuthService.create_access_token(data={"sub": user.id})
+    refresh_token = AuthService.create_refresh_token(data={"sub": user.id})
     
-    # Generate tokens
-    access_token = AuthService.create_access_token(data={"sub": new_user.id})
-    refresh_token = AuthService.create_refresh_token(data={"sub": new_user.id})
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "user": {
-            "id": new_user.id,
-            "email": new_user.email,
-            "name": new_user.name,
-            "role": new_user.role
-        }
-    }
+    # Convert to response schema
+    return RegisterResponse(
+        user=UserResponse.from_orm(user),
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer"
+    )
 
-
-@router.post("/login", response_model=TokenResponse)
-async def login(credentials: UserLogin, db: Session = Depends(get_db)):
-    """Login user"""
-    # Authenticate
+@router.post("/login", response_model=LoginResponse)
+async def login(
+    credentials: LoginRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    User login - returns access and refresh tokens
+    """
+    # Authenticate user
     user = AuthService.authenticate_user(db, credentials.email, credentials.password)
     
     if not user:
@@ -99,129 +90,83 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Update last login
-    user.last_login = datetime.utcnow()
-    db.commit()
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Inactive user account"
+        )
     
-    # Generate tokens
+    # Create tokens
     access_token = AuthService.create_access_token(data={"sub": user.id})
     refresh_token = AuthService.create_refresh_token(data={"sub": user.id})
     
-    return {
-        "access_token": access_token,
-        "refresh_token": refresh_token,
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role
-        }
-    }
+    # 🔧 Fixed: Use Pydantic schema instead of SQLAlchemy model
+    return LoginResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        user=UserResponse.from_orm(user)
+    )
 
-
-@router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(token_data: RefreshTokenRequest, db: Session = Depends(get_db)):
-    """Refresh access token"""
-    # Decode refresh token
-    payload = AuthService.decode_token(token_data.refresh_token)
+@router.post("/refresh", response_model=RefreshResponse)
+async def refresh_token(
+    request: RefreshRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Refresh access token using refresh token
+    """
+    access_token = AuthService.refresh_access_token(db, request.refresh_token)
     
-    # Verify token type
-    if payload.get("type") != "refresh":
+    if not access_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type"
+            detail="Invalid refresh token",
+            headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == user_id).first()
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
-        )
-    
-    # Generate new tokens
-    access_token = AuthService.create_access_token(data={"sub": user.id})
-    new_refresh_token = AuthService.create_refresh_token(data={"sub": user.id})
-    
-    return {
-        "access_token": access_token,
-        "refresh_token": new_refresh_token,
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.role
-        }
-    }
+    return RefreshResponse(
+        access_token=access_token,
+        token_type="bearer"
+    )
 
+@router.get("/me", response_model=UserResponse)
+async def get_current_user_info(
+    current_user: User = Depends(get_current_active_user)
+):
+    """
+    Get current user information
+    """
+    # 🔧 Fixed: Use Pydantic schema
+    return UserResponse.from_orm(current_user)
 
-@router.post("/logout")
-async def logout(current_user: User = Depends(get_current_user)):
-    """Logout user (client should delete tokens)"""
-    return {"message": "Successfully logged out"}
-
-
-@router.get("/me")
-async def get_current_user_info(current_user: User = Depends(get_current_active_user)):
-    """Get current user information"""
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "name": current_user.name,
-        "role": current_user.role,
-        "status": current_user.status,
-        "created_at": current_user.created_at.isoformat(),
-        "last_login": current_user.last_login.isoformat() if current_user.last_login else None
-    }
-
-
-@router.put("/me")
+@router.put("/me", response_model=UserResponse)
 async def update_current_user(
-    name: Optional[str] = None,
+    updates: dict,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    """Update current user information"""
-    if name:
-        current_user.name = name
+    """
+    Update current user information
+    """
+    # Update allowed fields
+    allowed_fields = ['name', 'timezone', 'language', 'avatar', 'bio']
+    
+    for field, value in updates.items():
+        if field in allowed_fields and hasattr(current_user, field):
+            setattr(current_user, field, value)
     
     db.commit()
     db.refresh(current_user)
     
-    return {
-        "id": current_user.id,
-        "email": current_user.email,
-        "name": current_user.name,
-        "role": current_user.role
-    }
+    # 🔧 Fixed: Use Pydantic schema
+    return UserResponse.from_orm(current_user)
 
-
-@router.post("/change-password")
-async def change_password(
-    current_password: str,
-    new_password: str,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+@router.post("/logout")
+async def logout(
+    current_user: User = Depends(get_current_active_user)
 ):
-    """Change user password"""
-    # Verify current password
-    if not AuthService.verify_password(current_password, current_user.password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Current password is incorrect"
-        )
-    
-    # Validate new password
-    if len(new_password) < 8:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="New password must be at least 8 characters"
-        )
-    
-    # Update password
-    current_user.password = AuthService.get_password_hash(new_password)
-    db.commit()
-    
-    return {"message": "Password changed successfully"}
+    """
+    User logout (client should discard tokens)
+    """
+    return {"message": "Successfully logged out"}

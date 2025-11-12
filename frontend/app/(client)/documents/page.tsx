@@ -15,14 +15,28 @@ export default function DocumentsPage() {
     setUploading(true);
 
     try {
+      const token = localStorage.getItem('access_token');
+      if (!token) {
+        alert('Please login first');
+        return;
+      }
+
       for (const file of Array.from(files)) {
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('dataset_id', 'default-dataset'); // TODO: Get from context
 
-        await fetch('/api/v1/documents/upload', {
+        const response = await fetch('http://localhost:8000/documents/upload', {
           method: 'POST',
           body: formData,
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
         });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
+        }
       }
 
       alert('Documents uploaded successfully!');
@@ -59,8 +73,8 @@ export default function DocumentsPage() {
           id="file-upload"
           accept=".pdf,.doc,.docx,.txt"
         />
-        <label htmlFor="file-upload">
-          <Button as="span" disabled={uploading}>
+        <label htmlFor="file-upload" className="cursor-pointer inline-block">
+          <Button disabled={uploading} type="button">
             {uploading ? 'Uploading...' : 'Choose Files'}
           </Button>
         </label>

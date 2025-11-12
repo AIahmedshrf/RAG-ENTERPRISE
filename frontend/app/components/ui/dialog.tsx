@@ -73,7 +73,6 @@ const DialogTitle = React.forwardRef<
       "text-lg font-semibold leading-none tracking-tight",
       className
     )}
-    ref={ref}
     {...props}
   />
 ))

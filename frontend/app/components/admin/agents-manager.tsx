@@ -26,9 +26,14 @@ export function AgentsManager() {
   const loadAgents = async () => {
     try {
       const data = await chatAPI.getAgents()
-      setAgents(data.agents || [])
+      if (data && typeof data === 'object' && 'agents' in data) {
+        setAgents((data as any).agents || [])
+      } else if (Array.isArray(data)) {
+        setAgents(data)
+      }
     } catch (error) {
       console.error('Failed to load agents:', error)
+      setAgents([])
     } finally {
       setLoading(false)
     }

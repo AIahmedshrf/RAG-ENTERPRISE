@@ -35,31 +35,38 @@ export default function HomePage() {
         if (!token) return;
 
         // Fetch datasets count
-        const datasetsRes = await fetch('http://localhost:8000/api/v1/admin/datasets', {
+        const datasetsRes = await fetch('http://localhost:8000/admin/datasets', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const datasetsData = await datasetsRes.json();
+        const datasetsData = datasetsRes.ok ? await datasetsRes.json() : { total: 0 };
 
         // Fetch apps count
-        const appsRes = await fetch('http://localhost:8000/api/v1/admin/apps', {
+        const appsRes = await fetch('http://localhost:8000/admin/apps', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const appsData = await appsRes.json();
+        const appsData = appsRes.ok ? await appsRes.json() : { total: 0 };
 
         // Fetch conversations count
-        const conversationsRes = await fetch('http://localhost:8000/api/v1/conversations', {
+        const conversationsRes = await fetch('http://localhost:8000/conversations', {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const conversationsData = await conversationsRes.json();
+        const conversationsData = conversationsRes.ok ? await conversationsRes.json() : [];
 
         setStats({
-          datasets: datasetsData.total || 0,
-          apps: appsData.total || 0,
+          datasets: datasetsData?.total || 0,
+          apps: appsData?.total || 0,
           conversations: Array.isArray(conversationsData) ? conversationsData.length : 0,
           documents: 0,
         });
       } catch (error) {
         console.error('Error fetching stats:', error);
+        // Set default values on error
+        setStats({
+          datasets: 0,
+          apps: 0,
+          conversations: 0,
+          documents: 0,
+        });
       } finally {
         setLoadingStats(false);
       }
@@ -89,12 +96,12 @@ export default function HomePage() {
                 Welcome back, {user.name}! 👋
               </h1>
               <p className="mt-1 text-sm text-gray-500">
-                {user.role === 'admin' ? 'Administrator Dashboard' : 'User Dashboard'}
+                {user.role_id?.includes('admin') ? 'Administrator Dashboard' : 'User Dashboard'}
               </p>
             </div>
             <div className="flex items-center gap-4">
               <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-                {user.role}
+                {user.role_id?.includes('admin') ? 'Admin' : 'User'}
               </span>
             </div>
           </div>
@@ -154,7 +161,7 @@ export default function HomePage() {
               icon="📤"
               onClick={() => router.push('/documents')}
             />
-            {user.role === 'admin' && (
+            {user.role_id?.includes('admin') && (
               <QuickAction
                 title="Create App"
                 description="Build a new AI application"
@@ -168,7 +175,7 @@ export default function HomePage() {
               icon="💰"
               onClick={() => router.push('/financial')}
             />
-            {user.role === 'admin' && (
+            {user.role_id?.includes('admin') && (
               <QuickAction
                 title="Analytics"
                 description="View system analytics"
@@ -176,7 +183,7 @@ export default function HomePage() {
                 onClick={() => router.push('/admin/analytics')}
               />
             )}
-            {user.role === 'admin' && (
+            {user.role_id?.includes('admin') && (
               <QuickAction
                 title="Workspace Settings"
                 description="Manage workspace"

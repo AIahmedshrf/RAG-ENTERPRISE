@@ -29,8 +29,8 @@ export function InvestmentAdvice() {
         query,
         risk_tolerance: riskLevel,
       })
-      setAdvice(response.advice)
-      setDisclaimer(response.disclaimer)
+      setAdvice((response as any).advice)
+      setDisclaimer((response as any).disclaimer)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حدث خطأ')
     } finally {

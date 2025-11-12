@@ -24,12 +24,12 @@ export default function AdminLayout({
   const { user, logout } = useAuth();
 
   useEffect(() => {
-    if (user && user.role !== 'admin') {
+    if (user && !user.role_id?.includes('admin')) {
       router.push('/home');
     }
   }, [user, router]);
 
-  if (!user || user.role !== 'admin') {
+  if (!user || !user.role_id?.includes('admin')) {
     return null;
   }
 

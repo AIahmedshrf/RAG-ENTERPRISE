@@ -1,0 +1,356 @@
+{
+  "frontend": {
+    "pages": {
+      "user_pages": [
+        "app/page.tsx",
+        "app/error.tsx",
+        "app/layout.tsx",
+        "app/loading.tsx",
+        "app/not-found.tsx",
+        "app/test-components/page.tsx",
+        "app/(client)/page.tsx",
+        "app/(client)/layout.tsx",
+        "app/i18n/i18n-context.tsx",
+        "app/(client)/financial/page.tsx",
+        "app/(client)/chat/page.tsx",
+        "app/(client)/documents/page.tsx",
+        "app/(client)/home/page.tsx",
+        "app/components/financial/investment-advice.tsx",
+        "app/components/financial/analysis-form.tsx",
+        "app/components/chat/message.tsx",
+        "app/components/chat/chat-container.tsx",
+        "app/components/chat/chat-input.tsx",
+        "app/components/documents/upload-dialog.tsx",
+        "app/components/documents/documents-container.tsx",
+        "app/components/documents/document-card.tsx",
+        "app/components/documents/stats-card.tsx",
+        "app/components/ui/card.tsx",
+        "app/components/ui/theme-toggle.tsx",
+        "app/components/ui/toast.tsx",
+        "app/components/ui/modal.tsx",
+        "app/components/ui/input.tsx",
+        "app/components/ui/dialog.tsx",
+        "app/components/ui/skeleton.tsx",
+        "app/components/ui/button.tsx",
+        "app/components/ui/language-switcher.tsx",
+        "app/lib/utils.ts",
+        "app/lib/websocket.ts",
+        "app/types/index.ts"
+      ],
+      "admin_pages": [
+        "app/components/admin/agents-manager.tsx",
+        "app/components/admin/models-management.tsx",
+        "app/components/admin/datasets-list.tsx",
+        "app/components/admin/system-info.tsx",
+        "app/components/admin/users-management.tsx",
+        "app/components/admin/stats-overview.tsx",
+        "app/components/admin/apps-list.tsx",
+        "app/(dashboard)/admin/page.tsx",
+        "app/(dashboard)/admin/layout.tsx",
+        "app/(dashboard)/admin/datasets/page.tsx",
+        "app/(dashboard)/admin/workspace/page.tsx",
+        "app/(dashboard)/admin/apps/page.tsx",
+        "app/(dashboard)/admin/users/page.tsx",
+        "app/(dashboard)/admin/analytics/page.tsx",
+        "app/(dashboard)/admin/models/page.tsx",
+        "app/(dashboard)/admin/datasets/[id]/page.tsx",
+        "app/lib/api/admin.ts"
+      ],
+      "auth_pages": [
+        "app/(auth)/layout.tsx",
+        "app/contexts/auth-context.tsx",
+        "app/components/auth/protected-route.tsx",
+        "app/(auth)/register/page.tsx",
+        "app/(auth)/login/page.tsx"
+      ],
+      "api_routes": [
+        "app/lib/adapters/api-adapter.ts",
+        "app/lib/api/chat.ts",
+        "app/lib/api/client.ts",
+        "app/lib/api/datasets.ts",
+        "app/lib/api/documents.ts",
+        "app/lib/api/apps.ts",
+        "app/lib/api/financial.ts"
+      ],
+      "components": []
+    },
+    "components_count": 0,
+    "total_pages": 56
+  },
+  "backend": {
+    "routes": {
+      "admin": {
+        "file": "admin.py",
+        "endpoints": 6,
+        "methods": {
+          "get": [
+            "/users",
+            "/users/{user_id}",
+            "/roles",
+            "/stats"
+          ],
+          "put": [
+            "/users/{user_id}"
+          ],
+          "delete": [
+            "/users/{user_id}"
+          ]
+        }
+      },
+      "analytics": {
+        "file": "analytics.py",
+        "endpoints": 5,
+        "methods": {
+          "get": [
+            "/usage",
+            "/costs",
+            "/performance",
+            "/feedback",
+            "/agents"
+          ]
+        }
+      },
+      "auth": {
+        "file": "auth.py",
+        "endpoints": 7,
+        "methods": {
+          "post": [
+            "/register",
+            "/login",
+            "/refresh",
+            "/logout",
+            "/change-password"
+          ],
+          "get": [
+            "/me"
+          ],
+          "put": [
+            "/me"
+          ]
+        }
+      },
+      "chat": {
+        "file": "chat.py",
+        "endpoints": 4,
+        "methods": {
+          "post": [
+            "/",
+            "/index-dataset"
+          ],
+          "get": [
+            "/agents",
+            "/retrieval-stats"
+          ]
+        }
+      },
+      "conversations": {
+        "file": "conversations.py",
+        "endpoints": 6,
+        "methods": {
+          "get": [
+            "/{conversation_id}",
+            "/{conversation_id}/messages"
+          ],
+          "delete": [
+            "/{conversation_id}"
+          ],
+          "post": [
+            "/{conversation_id}/messages",
+            "/{conversation_id}/rename",
+            "/{conversation_id}/archive"
+          ]
+        }
+      },
+      "datasets": {
+        "file": "datasets.py",
+        "endpoints": 4,
+        "methods": {
+          "get": [
+            "/{dataset_id}",
+            "/{dataset_id}/statistics"
+          ],
+          "put": [
+            "/{dataset_id}"
+          ],
+          "delete": [
+            "/{dataset_id}"
+          ]
+        }
+      },
+      "documents": {
+        "file": "documents.py",
+        "endpoints": 3,
+        "methods": {
+          "post": [
+            "/upload"
+          ],
+          "get": [
+            "/{document_id}"
+          ],
+          "delete": [
+            "/{document_id}"
+          ]
+        }
+      },
+      "financial": {
+        "file": "financial.py",
+        "endpoints": 2,
+        "methods": {
+          "post": [
+            "/analyze"
+          ],
+          "get": [
+            "/metrics"
+          ]
+        }
+      },
+      "health": {
+        "file": "health.py",
+        "endpoints": 1,
+        "methods": {
+          "get": [
+            "/health"
+          ]
+        }
+      },
+      "tools": {
+        "file": "tools.py",
+        "endpoints": 5,
+        "methods": {
+          "get": [
+            "/{tool_id}",
+            "/providers/"
+          ],
+          "put": [
+            "/{tool_id}"
+          ],
+          "delete": [
+            "/{tool_id}"
+          ],
+          "post": [
+            "/{tool_id}/invoke"
+          ]
+        }
+      },
+      "websocket": {
+        "file": "websocket.py",
+        "endpoints": 0,
+        "methods": {}
+      }
+    },
+    "models": {
+      "api_token": {
+        "classes": [
+          "ApiToken"
+        ],
+        "columns": 5,
+        "relationships": 0
+      },
+      "app": {
+        "classes": [
+          "App",
+          "AppModelConfig"
+        ],
+        "columns": 11,
+        "relationships": 0
+      },
+      "conversation": {
+        "classes": [
+          "Conversation"
+        ],
+        "columns": 4,
+        "relationships": 0
+      },
+      "dataset": {
+        "classes": [
+          "Dataset"
+        ],
+        "columns": 5,
+        "relationships": 0
+      },
+      "document": {
+        "classes": [
+          "Document",
+          "DocumentSegment"
+        ],
+        "columns": 16,
+        "relationships": 0
+      },
+      "document_segment": {
+        "classes": [
+          "DocumentSegment"
+        ],
+        "columns": 10,
+        "relationships": 0
+      },
+      "message": {
+        "classes": [
+          "Message",
+          "MessageFeedback"
+        ],
+        "columns": 7,
+        "relationships": 0
+      },
+      "message_feedback": {
+        "classes": [
+          "MessageFeedback"
+        ],
+        "columns": 7,
+        "relationships": 0
+      },
+      "role": {
+        "classes": [
+          "Role",
+          "Permission",
+          "RolePermission"
+        ],
+        "columns": 8,
+        "relationships": 2
+      },
+      "tenant": {
+        "classes": [
+          "Tenant"
+        ],
+        "columns": 3,
+        "relationships": 0
+      },
+      "tool": {
+        "classes": [
+          "Tool",
+          "ToolProvider"
+        ],
+        "columns": 7,
+        "relationships": 0
+      },
+      "tool_provider": {
+        "classes": [
+          "ToolProvider"
+        ],
+        "columns": 8,
+        "relationships": 0
+      },
+      "user": {
+        "classes": [
+          "User"
+        ],
+        "columns": 7,
+        "relationships": 0
+      },
+      "workflow": {
+        "classes": [
+          "Workflow",
+          "WorkflowNode"
+        ],
+        "columns": 9,
+        "relationships": 0
+      },
+      "workspace": {
+        "classes": [
+          "Workspace"
+        ],
+        "columns": 2,
+        "relationships": 0
+      }
+    }
+  }
+}

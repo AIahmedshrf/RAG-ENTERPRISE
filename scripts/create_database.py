@@ -17,6 +17,8 @@ from api.models.role import Role, Permission, RolePermission
 from api.models.app import App, AppMode, AppModelConfig
 from api.models.dataset import Dataset, IndexingTechnique
 from api.models.document import Document, DocumentSegment, DocumentStatus, DocumentType
+from api.models.embedding import Embedding
+from api.models.agent import Agent
 from api.models.conversation import Conversation, ConversationStatus
 from api.models.message import Message, MessageFeedback
 from api.models.tool import Tool, ToolProvider, ToolType

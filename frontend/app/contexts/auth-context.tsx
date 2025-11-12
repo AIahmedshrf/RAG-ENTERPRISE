@@ -7,7 +7,8 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: string;
+  role_id?: string;
+  is_active: boolean;
 }
 
 interface AuthContextType {
@@ -27,6 +28,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
+  // API Base URL
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+
   useEffect(() => {
     checkAuth();
   }, []);
@@ -40,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/me', {
+      const response = await fetch(`${API_URL}/auth/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -48,7 +52,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData);
+        // Ensure user object has proper structure
+        if (userData && typeof userData === 'object') {
+          setUser({
+            id: userData.id || '',
+            email: userData.email || '',
+            name: userData.full_name || userData.name || 'User',
+            role_id: userData.role_id || undefined,
+            is_active: userData.is_active !== false,
+          });
+        }
       } else {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
@@ -61,7 +74,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await fetch('http://localhost:8000/api/v1/auth/login', {
+    // 🔧 Fixed: Changed from /api/v1/auth/login to /auth/login
+    const response = await fetch(`${API_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -77,9 +91,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('refresh_token', data.refresh_token);
     
-    setUser(data.user);
+    // Ensure user object has proper structure
+    const userData: User = {
+      id: data.user?.id || '',
+      email: data.user?.email || email,
+      name: data.user?.full_name || data.user?.name || 'User',
+      role_id: data.user?.role_id || undefined,
+      is_active: data.user?.is_active !== false,
+    };
     
-    if (data.user.role === 'admin') {
+    setUser(userData);
+    
+    // Check if user is admin by role_id or role object
+    const isAdmin = data.user?.role?.name === 'admin' || 
+                   (data.user?.role_id && data.user.role_id.includes('admin'));
+    
+    if (isAdmin) {
       router.push('/admin');
     } else {
       router.push('/home');
@@ -87,10 +114,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const register = async (email: string, password: string, name?: string) => {
-    const response = await fetch('http://localhost:8000/api/v1/auth/register', {
+    // 🔧 Fixed: Changed from /api/v1/auth/register to /auth/register
+    const response = await fetch(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, name })
+      body: JSON.stringify({ email, password, full_name: name || email })
     });
 
     if (!response.ok) {
@@ -103,7 +131,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('access_token', data.access_token);
     localStorage.setItem('refresh_token', data.refresh_token);
     
-    setUser(data.user);
+    // Ensure user object has proper structure
+    const userData: User = {
+      id: data.user?.id || '',
+      email: data.user?.email || email,
+      name: data.user?.full_name || data.user?.name || name || 'User',
+      role_id: data.user?.role_id || undefined,
+      is_active: data.user?.is_active !== false,
+    };
+    
+    setUser(userData);
     router.push('/home');
   };
 
@@ -114,6 +151,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push('/login');
   };
 
+  // Check if user is admin
+  const isAdmin = user?.role_id?.includes('admin') || false;
+
   return (
     <AuthContext.Provider
       value={{
@@ -123,7 +163,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         register,
         logout,
         isAuthenticated: !!user,
-        isAdmin: user?.role === 'admin'
+        isAdmin
       }}
     >
       {children}

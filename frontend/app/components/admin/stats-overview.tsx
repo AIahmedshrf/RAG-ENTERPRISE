@@ -21,16 +21,16 @@ export function StatsOverview() {
   const loadStats = async () => {
     try {
       // Documents stats
-      const docStats = await documentsAPI.getStats()
-      const agentsData = await chatAPI.getAgents()
+      const docStats = await documentsAPI.getStats() as any
+      const agentsData = await chatAPI.getAgents() as any
 
       setStats({
-        documents: docStats.vector_store?.total_documents || 0,
-        chunks: Object.values(docStats.vector_store?.indexes || {}).reduce(
+        documents: docStats?.vector_store?.total_documents || 0,
+        chunks: Object.values(docStats?.vector_store?.indexes || {}).reduce(
           (sum: number, val: any) => sum + (Number(val) || 0),
           0
         ),
-        agents: agentsData.agents?.length || 0,
+        agents: agentsData?.agents?.length || 0,
         conversations: 0, // TODO: من API
       })
     } catch (error) {
