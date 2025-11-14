@@ -250,12 +250,13 @@ export default function AgentsAdminPage() {
 }
 
 function StatCard({ title, value, icon, color }: any) {
-  const colorClass = {
+  const colorMap: any = {
     blue: 'bg-blue-50 border-blue-200',
     green: 'bg-green-50 border-green-200',
     orange: 'bg-orange-50 border-orange-200',
     purple: 'bg-purple-50 border-purple-200',
-  }[color] || 'bg-gray-50 border-gray-200';
+  };
+  const colorClass = colorMap[color as string] || 'bg-gray-50 border-gray-200';
 
   return (
     <div className={`${colorClass} border rounded-lg p-4`}>
@@ -282,3 +283,4 @@ function ActionCard({ title, description, icon, href }: any) {
     </a>
   );
 }
+

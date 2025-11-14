@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { endpoint } from '@/app/lib/api-constants';
+import { useAuth } from '@/app/contexts/auth-context';
 
 interface KnowledgeStats {
   total_documents: number;
@@ -16,9 +16,17 @@ interface RecentDocument {
   status: string;
   uploaded_at: string;
   segment_count: number;
+  type?: string;
+  size?: number;
 }
 
+const endpoint = (path: string) => {
+  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+  return `${baseUrl}${path}`;
+};
+
 export default function KnowledgeBaseAdminPage() {
+  const { user } = useAuth();
   const [stats, setStats] = useState<KnowledgeStats>({
     total_documents: 0,
     total_segments: 0,
@@ -28,6 +36,8 @@ export default function KnowledgeBaseAdminPage() {
   const [documents, setDocuments] = useState<RecentDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -178,13 +188,15 @@ export default function KnowledgeBaseAdminPage() {
   );
 }
 
+
 function StatCard({ title, value, icon, color }: any) {
-  const colorClass = {
+  const colorMap: any = {
     blue: 'bg-blue-50 border-blue-200',
     green: 'bg-green-50 border-green-200',
     orange: 'bg-orange-50 border-orange-200',
     purple: 'bg-purple-50 border-purple-200',
-  }[color] || 'bg-gray-50 border-gray-200';
+  };
+  const colorClass = colorMap[color as string] || 'bg-gray-50 border-gray-200';
 
   return (
     <div className={`${colorClass} border rounded-lg p-4`}>
@@ -220,7 +232,7 @@ function StatusBadge({ status }: any) {
     error: { bg: 'bg-red-100', text: 'text-red-800' },
   };
 
-  const config = statusConfig[status] || { bg: 'bg-gray-100', text: 'text-gray-800' };
+  const config = statusConfig[status as string] || { bg: 'bg-gray-100', text: 'text-gray-800' };
 
   return (
     <span className={`px-3 py-1 rounded-full text-xs font-medium ${config.bg} ${config.text}`}>
@@ -228,3 +240,4 @@ function StatusBadge({ status }: any) {
     </span>
   );
 }
+

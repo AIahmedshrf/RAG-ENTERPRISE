@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LanguageSwitcher } from '@/app/components/ui/language-switcher';
@@ -12,6 +12,26 @@ const navigation = [
   { name: 'Chat', href: '/chat', icon: '💬' },
   { name: 'Documents', href: '/documents', icon: '📄' },
   { name: 'Financial', href: '/financial', icon: '💰' },
+];
+
+const adminNavigation = [
+  { name: 'Dashboard', href: '/admin', icon: '📊' },
+  { name: 'Knowledge Base', href: '/admin/knowledge', icon: '📚' },
+  { name: 'Agents', href: '/admin/agents', icon: '🤖' },
+  { name: 'Models', href: '/admin/models', icon: '🧠' },
+  { name: 'Datasets', href: '/admin/datasets', icon: '📦' },
+  { name: 'Users', href: '/admin/users', icon: '👥' },
+  { name: 'Settings', href: '/admin/settings', icon: '⚙️' },
+];
+
+const adminMenuItems = [
+  { name: 'Dashboard', href: '/admin', icon: '📊' },
+  { name: 'Knowledge Base', href: '/admin/knowledge', icon: '📄' },
+  { name: 'Agents', href: '/admin/agents', icon: '🤖' },
+  { name: 'Models', href: '/admin/models', icon: '🧠' },
+  { name: 'Datasets', href: '/admin/datasets', icon: '📦' },
+  { name: 'Users', href: '/admin/users', icon: '👥' },
+  { name: 'Settings', href: '/admin/settings', icon: '⚙️' },
 ];
 
 export default function ClientLayout({
@@ -58,13 +78,34 @@ export default function ClientLayout({
                   })}
                   
                   {isAdmin && (
-                    <Link
-                      href="/admin"
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-purple-700 hover:bg-purple-50"
-                    >
-                      <span>👑</span>
-                      Admin
-                    </Link>
+                    <div className="relative group">
+                      <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-orange-700 hover:bg-orange-50">
+                        <span>🔧</span>
+                        Admin
+                        <span className="group-hover:rotate-180 transition-transform text-xs">▼</span>
+                      </button>
+                      
+                      <div className="absolute left-0 mt-0 w-56 bg-white rounded-lg shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                        <div className="py-2">
+                          {adminMenuItems.map((item) => (
+                            <Link
+                              key={item.name}
+                              href={item.href}
+                              className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                                pathname.startsWith(item.href) && item.href !== '/admin'
+                                  ? 'bg-orange-50 text-orange-700'
+                                  : pathname === item.href
+                                  ? 'bg-orange-50 text-orange-700'
+                                  : 'text-gray-700 hover:bg-gray-50'
+                              }`}
+                            >
+                              <span className="text-lg">{item.icon}</span>
+                              <span className="flex-1">{item.name}</span>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </nav>
               </div>
