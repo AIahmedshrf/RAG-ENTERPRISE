@@ -8,6 +8,7 @@ interface User {
   email: string;
   name: string;
   role_id?: string;
+  role_name?: string;
   is_active: boolean;
 }
 
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             email: userData.email || '',
             name: userData.full_name || userData.name || 'User',
             role_id: userData.role_id || undefined,
+            role_name: (userData.role && userData.role.name) || userData.role_name || undefined,
             is_active: userData.is_active !== false,
           });
         }
@@ -97,6 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email: data.user?.email || email,
       name: data.user?.full_name || data.user?.name || 'User',
       role_id: data.user?.role_id || undefined,
+      role_name: (data.user?.role && data.user.role.name) || data.user?.role_name || undefined,
       is_active: data.user?.is_active !== false,
     };
     
@@ -152,7 +155,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Check if user is admin
-  const isAdmin = user?.role_id?.includes('admin') || false;
+  const isAdmin = Boolean(
+    user?.role_id?.toString().toLowerCase().includes('admin') ||
+    (user?.role_name && user.role_name.toLowerCase() === 'admin')
+  );
 
   return (
     <AuthContext.Provider
