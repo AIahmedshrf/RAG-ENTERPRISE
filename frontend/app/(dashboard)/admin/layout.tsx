@@ -11,16 +11,16 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    if (user && !user.role_id?.includes('admin')) {
+    if (user && !isAdmin) {
       router.push('/home');
     }
-  }, [user, router]);
+  }, [user, isAdmin, router]);
 
-  if (!user || !user.role_id?.includes('admin')) {
+  if (!user || !isAdmin) {
     return <div className="flex items-center justify-center min-h-screen text-gray-500">Redirecting...</div>;
   }
 

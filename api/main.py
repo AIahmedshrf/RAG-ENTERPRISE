@@ -22,7 +22,6 @@ from api.routes import (
     health,
     auth,
     admin,
-    admin_roles,
     datasets,
     documents,
     chat,
@@ -124,11 +123,8 @@ app.include_router(health.router, tags=["health"])
 # Authentication routes
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
 
-# Admin routes
+# Admin routes (includes users, roles, apps, datasets, workspace)
 app.include_router(admin.router, prefix="/admin", tags=["admin"])
-
-# Admin RBAC routes
-app.include_router(admin_roles.router, tags=["admin-rbac"])
 
 # Dataset routes
 app.include_router(datasets.router, prefix="/datasets", tags=["datasets"])

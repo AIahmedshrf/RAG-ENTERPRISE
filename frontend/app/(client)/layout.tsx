@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { LanguageSwitcher } from '@/app/components/ui/language-switcher';
 import { useAuth } from '@/app/contexts/auth-context';
 import { ProtectedRoute } from '@/app/components/auth/protected-route';
@@ -41,8 +41,14 @@ export default function ClientLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout, isAdmin } = useAuth();
   const [showAdminMenu, setShowAdminMenu] = useState(false);
+
+  const handleAdminMenuClick = (href: string) => {
+    setShowAdminMenu(false);
+    router.push(href);
+  };
 
   return (
     <ProtectedRoute>
@@ -94,10 +100,9 @@ export default function ClientLayout({
                         <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
                           <div className="py-2">
                             {adminMenuItems.map((item) => (
-                              <Link
+                              <button
                                 key={item.name}
-                                href={item.href}
-                                onClick={() => setShowAdminMenu(false)}
+                                onClick={() => handleAdminMenuClick(item.href)}
                                 className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors block w-full text-left ${
                                   pathname.startsWith(item.href) && item.href !== '/admin'
                                     ? 'bg-orange-50 text-orange-700'
@@ -108,7 +113,7 @@ export default function ClientLayout({
                               >
                                 <span className="text-lg">{item.icon}</span>
                                 <span className="flex-1">{item.name}</span>
-                              </Link>
+                              </button>
                             ))}
                           </div>
                         </div>

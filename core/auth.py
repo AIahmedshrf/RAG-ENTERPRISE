@@ -239,10 +239,10 @@ def require_admin(
 ) -> User:
     """
     FastAPI dependency to require admin permissions
-    Alias for get_current_admin_user for backward compatibility
+    Checks for super_admin or admin role
     """
-    # Check if user has admin role
-    if current_user.role and current_user.role.name != "admin":
+    # Check if user has admin or super_admin role
+    if not current_user.role or current_user.role.name not in ["admin", "super_admin"]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin permissions required"

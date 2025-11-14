@@ -55,7 +55,7 @@ async def list_apps(
                 {
                     "id": app.id,
                     "name": app.name,
-                    "mode": app.mode,
+                    "mode": app.mode.value if hasattr(app.mode, 'value') else str(app.mode),
                     "icon": app.icon,
                     "description": app.description,
                     "tenant_id": app.tenant_id,
@@ -163,7 +163,7 @@ async def get_app(
         return {
             "id": app.id,
             "name": app.name,
-            "mode": app.mode,
+            "mode": app.mode.value if hasattr(app.mode, 'value') else str(app.mode),
             "icon": app.icon,
             "description": app.description,
             "model_config": json.loads(app.model_config) if app.model_config else None,

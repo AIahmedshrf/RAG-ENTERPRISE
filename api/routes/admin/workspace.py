@@ -39,18 +39,20 @@ async def get_workspace(
     """Get current workspace info"""
     try:
         workspace = db.query(Workspace).filter(
-            Workspace.tenant_id == current_user.tenant_id
-        ).first()
+            Workspace.id == current_user.workspace_id
+        ).first() if current_user.workspace_id else None
         
         if not workspace:
             workspace = Workspace(
                 id=str(uuid.uuid4()),
-                name=f"Workspace - {current_user.tenant_id[:8] if current_user.tenant_id else 'default'}",
-                tenant_id=current_user.tenant_id
+                name=f"Workspace - {current_user.tenant_id[:8] if current_user.tenant_id else 'default'}"
             )
             db.add(workspace)
             db.commit()
             db.refresh(workspace)
+            # Update user with workspace_id
+            current_user.workspace_id = workspace.id
+            db.commit()
         
         member_count = db.query(User).filter(
             User.tenant_id == current_user.tenant_id
@@ -59,7 +61,6 @@ async def get_workspace(
         return {
             "id": workspace.id,
             "name": workspace.name,
-            "tenant_id": workspace.tenant_id,
             "member_count": member_count,
             "created_at": workspace.created_at.isoformat() if workspace.created_at else None,
             "updated_at": workspace.updated_at.isoformat() if workspace.updated_at else None,
@@ -81,8 +82,8 @@ async def update_workspace(
     """Update workspace settings"""
     try:
         workspace = db.query(Workspace).filter(
-            Workspace.tenant_id == current_user.tenant_id
-        ).first()
+            Workspace.id == current_user.workspace_id
+        ).first() if current_user.workspace_id else None
         
         if not workspace:
             raise HTTPException(
@@ -139,9 +140,9 @@ async def list_workspace_members(
                     "id": member.id,
                     "email": member.email,
                     "name": member.name,
-                    "role": member.role,
-                    "status": member.status,
-                    "last_login": member.last_login.isoformat() if member.last_login else None,
+                    "role_id": member.role_id,
+                    "status": member.status.value if member.status else "active",
+                    "last_login_at": member.last_login_at.isoformat() if member.last_login_at else None,
                     "created_at": member.created_at.isoformat() if member.created_at else None,
                 }
                 for member in members
@@ -185,14 +186,14 @@ async def invite_member(
         
         # Create user
         from core.auth import get_password_hash
+        from api.models.user import UserStatus
         
         new_user = User(
             id=str(uuid.uuid4()),
             email=request.email,
             name=request.name,
-            password=get_password_hash("temporary123"),
-            role=request.role,
-            status="active",
+            password_hash=get_password_hash("temporary123"),
+            status=UserStatus.ACTIVE,
             tenant_id=current_user.tenant_id
         )
         
@@ -204,7 +205,7 @@ async def invite_member(
             "id": new_user.id,
             "email": new_user.email,
             "name": new_user.name,
-            "role": new_user.role,
+            "role_id": new_user.role_id,
             "message": "Member invited successfully. Temporary password: temporary123"
         }
     except HTTPException:
@@ -266,8 +267,8 @@ async def get_workspace_settings(
     """Get workspace settings"""
     try:
         workspace = db.query(Workspace).filter(
-            Workspace.tenant_id == current_user.tenant_id
-        ).first()
+            Workspace.id == current_user.workspace_id
+        ).first() if current_user.workspace_id else None
         
         if not workspace:
             raise HTTPException(
@@ -278,7 +279,6 @@ async def get_workspace_settings(
         return {
             "workspace_id": workspace.id,
             "name": workspace.name,
-            "tenant_id": workspace.tenant_id,
             "settings": {
                 "language": "en",
                 "timezone": "UTC",
@@ -304,8 +304,8 @@ async def update_workspace_settings(
     """Update workspace settings"""
     try:
         workspace = db.query(Workspace).filter(
-            Workspace.tenant_id == current_user.tenant_id
-        ).first()
+            Workspace.id == current_user.workspace_id
+        ).first() if current_user.workspace_id else None
         
         if not workspace:
             raise HTTPException(
