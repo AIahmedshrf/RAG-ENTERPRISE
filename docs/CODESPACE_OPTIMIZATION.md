@@ -178,3 +178,64 @@ ls -l frontend | grep node_modules
 tail -50 /tmp/frontend.log
 pkill -f "next dev"
 cd frontend && npm run dev
+*************
+
+📁 other steps:
+# اعرف ما الذي يأخذ مساحة
+sudo du -xhd1 /workspaces | sort -h | tail -n 40
+
+# امسح كاشات شائعة
+rm -rf ~/.cache/pip ~/.cache/torch ~/.cache/huggingface ~/.npm ~/.pnpm-store ~/.cache
+pip cache purge || true
+
+
+لو عندك مجلدات ضخمة (مثل node_modules أو مخرجات تدريب) احذف/انقل ما لا تحتاجه مؤقتًا.
+
+2) أنشئ بيئة Python على /tmp (بدلاً من /workspaces)
+# بيئة افتراضية على /tmp
+
+
+# Recreate Python venv
+python3 -m venv /tmp/rag-enterprise/venv
+
+ln -sfn /tmp/rag-enterprise/venv venv
+source venv/bin/activate
+
+# حدّث أدوات pip الأساسية
+pip install -U pip wheel setuptools
+
+pip install -q --upgrade pip
+pip install -q -r requirements.txt
+***
+cat <<'EOF' >> ~/.bashrc
+export TMPDIR=/tmp
+# Python & Pip
+export PIP_CACHE_DIR=/tmp/cache/pip
+export PYTHONPYCACHEPREFIX=/tmp/cache/python
+export POETRY_CACHE_DIR=/tmp/cache/poetry
+# Hugging Face & Transformers
+export HF_HOME=/tmp/cache/huggingface
+export TRANSFORMERS_CACHE=/tmp/cache/huggingface/transformers
+export HF_DATASETS_CACHE=/tmp/cache/huggingface/datasets
+export TORCH_HOME=/tmp/cache/torch
+# PyTorch
+export TORCH_HOME=/tmp/cache/torch
+export TORCH_EXTENSIONS_DIR=/tmp/cache/torch/extensions
+
+# ML Libraries
+export MATPLOTLIB_CACHE=/tmp/cache/matplotlib
+export MPLCONFIGDIR=/tmp/cache/matplotlib
+export NLTK_DATA=/tmp/cache/nltk_data
+export SPACY_DATA=/tmp/cache/spacy
+
+# Node.js
+export NPM_CONFIG_CACHE=/tmp/cache/npm
+export PLAYWRIGHT_BROWSERS_PATH=/tmp/pwbrowsers
+
+# Docker (if used)
+export DOCKER_TMPDIR=/tmp/docker
+
+[ -d /tmp/rag-enterprise/venv ] || python3 -m venv /tmp/rag-enterprise/venv
+ln -sfn /tmp/rag-enterprise/venv /workspaces/$(basename $PWD)/venv 2>/dev/null || true
+EOF
+source ~/.bashrc
