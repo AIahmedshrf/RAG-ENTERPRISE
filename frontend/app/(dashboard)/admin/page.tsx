@@ -99,8 +99,8 @@ export default function AdminOverview() {
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      {/* Stats Grid - Enhanced with RBAC */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <StatCard
           title="Datasets"
           value={stats.datasets}
@@ -123,6 +123,13 @@ export default function AdminOverview() {
           onClick={() => router.push('/admin/users')}
         />
         <StatCard
+          title="Active Roles"
+          value={6}
+          icon="🎖️"
+          color="purple"
+          onClick={() => router.push('/admin/roles-permissions')}
+        />
+        <StatCard
           title="Workspace"
           value={stats.workspace}
           icon="🏢"
@@ -135,24 +142,42 @@ export default function AdminOverview() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6 mb-8">
         <h2 className="text-xl font-semibold mb-4">⚡ Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <QuickAction
+            title="Manage Users"
+            description="Add, remove, edit users"
+            icon="👥"
+            onClick={() => router.push('/admin/users')}
+          />
+          <QuickAction
+            title="Manage Roles"
+            description="Control permissions"
+            icon="🎖️"
+            onClick={() => router.push('/admin/roles-permissions')}
+          />
           <QuickAction
             title="Create Dataset"
-            description="Add new knowledge base"
+            description="Add knowledge base"
             icon="📚"
             onClick={() => router.push('/admin/datasets')}
           />
           <QuickAction
-            title="Create Application"
-            description="Build new AI app"
+            title="Manage Agents"
+            description="Deploy AI agents"
             icon="🤖"
-            onClick={() => router.push('/admin/apps')}
+            onClick={() => router.push('/admin/agents')}
           />
           <QuickAction
-            title="Invite User"
-            description="Add team member"
-            icon="➕"
-            onClick={() => router.push('/admin/users')}
+            title="Knowledge Base"
+            description="Manage documents"
+            icon="📖"
+            onClick={() => router.push('/admin/knowledge')}
+          />
+          <QuickAction
+            title="Manage Models"
+            description="Configure models"
+            icon="🧠"
+            onClick={() => router.push('/admin/models')}
           />
           <QuickAction
             title="View Analytics"
@@ -161,29 +186,47 @@ export default function AdminOverview() {
             onClick={() => router.push('/admin/analytics')}
           />
           <QuickAction
-            title="Workspace Settings"
-            description="Manage configuration"
+            title="Settings"
+            description="System configuration"
             icon="⚙️"
-            onClick={() => router.push('/admin/workspace')}
-          />
-          <QuickAction
-            title="API Documentation"
-            description="View API docs"
-            icon="📖"
-            onClick={() => window.open('http://localhost:8000/docs', '_blank')}
+            onClick={() => router.push('/admin/settings-enhanced')}
           />
         </div>
       </div>
 
       {/* System Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold mb-4">🔧 System Status</h2>
           <div className="space-y-3">
             <StatusItem label="Backend API" status="healthy" />
             <StatusItem label="Database" status="healthy" />
             <StatusItem label="Authentication" status="healthy" />
-            <StatusItem label="Storage" status="healthy" />
+            <StatusItem label="RBAC System" status="healthy" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">🔐 RBAC Overview</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-2 text-sm">
+              <span className="text-gray-600">Available Roles</span>
+              <span className="font-semibold text-gray-900">6</span>
+            </div>
+            <div className="flex items-center justify-between p-2 text-sm border-t">
+              <span className="text-gray-600">Total Permissions</span>
+              <span className="font-semibold text-gray-900">28</span>
+            </div>
+            <div className="flex items-center justify-between p-2 text-sm border-t">
+              <span className="text-gray-600">Permission Categories</span>
+              <span className="font-semibold text-gray-900">8</span>
+            </div>
+            <button
+              onClick={() => router.push('/admin/roles-permissions')}
+              className="w-full mt-2 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
+            >
+              Manage RBAC →
+            </button>
           </div>
         </div>
 
