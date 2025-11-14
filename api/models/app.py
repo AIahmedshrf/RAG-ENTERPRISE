@@ -9,6 +9,7 @@ from .base import BaseModel
 class AppMode(str, enum.Enum):
     CHAT = "chat"
     AGENT = "agent"
+    AGENT_CHAT = "agent-chat"
     WORKFLOW = "workflow"
     COMPLETION = "completion"
 

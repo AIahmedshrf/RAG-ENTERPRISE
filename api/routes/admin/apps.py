@@ -20,7 +20,7 @@ router = APIRouter()
 # Pydantic Models for Request/Response
 class CreateAppRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    mode: str = Field(default="chat", pattern="^(chat|agent|workflow|completion)$")
+    mode: str = Field(default="chat", pattern="^(chat|agent|agent-chat|workflow|completion)$")
     icon: Optional[str] = Field(default="🤖", max_length=10)
     description: Optional[str] = Field(default=None, max_length=500)
     model_config: Optional[Dict[str, Any]] = None
