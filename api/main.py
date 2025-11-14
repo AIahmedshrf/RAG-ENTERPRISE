@@ -30,6 +30,7 @@ from api.routes import (
     tools,
     knowledge,
     agents,
+    workflows,
     financial,
     websocket
 )
@@ -147,8 +148,11 @@ app.include_router(tools.router, prefix="/tools", tags=["tools"])
 # Knowledge routes (search/upload skeleton)
 app.include_router(knowledge.router, prefix="/knowledge", tags=["knowledge"])
 
-# Agents management routes (skeleton)
+# Agents management routes
 app.include_router(agents.router, prefix="/agents", tags=["agents"])
+
+# Workflows management routes
+app.include_router(workflows.router, prefix="/workflows", tags=["workflows"])
 
 # Financial routes
 app.include_router(financial.router, prefix="/financial", tags=["financial"])

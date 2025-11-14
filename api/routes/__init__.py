@@ -14,6 +14,7 @@ from . import (
     tools,
     knowledge,
     agents,
+    workflows,
     financial,
     websocket
 )
@@ -30,6 +31,7 @@ __all__ = [
     "tools",
     "knowledge",
     "agents",
+    "workflows",
     "financial",
     "websocket"
 ]
