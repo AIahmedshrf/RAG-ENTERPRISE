@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Home', href: '/home', icon: '🏠' },
   { name: 'Chat', href: '/chat', icon: '💬' },
   { name: 'Documents', href: '/documents', icon: '📄' },
+  { name: 'Quotes', href: '/quotes', icon: '💭' },
   { name: 'Financial', href: '/financial', icon: '💰' },
 ];
 
@@ -41,6 +42,7 @@ export default function ClientLayout({
 }) {
   const pathname = usePathname();
   const { user, logout, isAdmin } = useAuth();
+  const [showAdminMenu, setShowAdminMenu] = useState(false);
 
   return (
     <ProtectedRoute>
@@ -78,33 +80,39 @@ export default function ClientLayout({
                   })}
                   
                   {isAdmin && (
-                    <div className="relative group">
-                      <button className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-orange-700 hover:bg-orange-50">
+                    <div className="relative">
+                      <button 
+                        onClick={() => setShowAdminMenu(!showAdminMenu)}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-orange-700 hover:bg-orange-50 transition-colors"
+                      >
                         <span>🔧</span>
                         Admin
-                        <span className="group-hover:rotate-180 transition-transform text-xs">▼</span>
+                        <span className={`transition-transform text-xs ${showAdminMenu ? 'rotate-180' : ''}`}>▼</span>
                       </button>
                       
-                      <div className="absolute left-0 mt-0 w-56 bg-white rounded-lg shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                        <div className="py-2">
-                          {adminMenuItems.map((item) => (
-                            <Link
-                              key={item.name}
-                              href={item.href}
-                              className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
-                                pathname.startsWith(item.href) && item.href !== '/admin'
-                                  ? 'bg-orange-50 text-orange-700'
-                                  : pathname === item.href
-                                  ? 'bg-orange-50 text-orange-700'
-                                  : 'text-gray-700 hover:bg-gray-50'
-                              }`}
-                            >
-                              <span className="text-lg">{item.icon}</span>
-                              <span className="flex-1">{item.name}</span>
-                            </Link>
-                          ))}
+                      {showAdminMenu && (
+                        <div className="absolute left-0 mt-2 w-56 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
+                          <div className="py-2">
+                            {adminMenuItems.map((item) => (
+                              <Link
+                                key={item.name}
+                                href={item.href}
+                                onClick={() => setShowAdminMenu(false)}
+                                className={`flex items-center gap-3 px-4 py-3 text-sm transition-colors block w-full text-left ${
+                                  pathname.startsWith(item.href) && item.href !== '/admin'
+                                    ? 'bg-orange-50 text-orange-700'
+                                    : pathname === item.href
+                                    ? 'bg-orange-50 text-orange-700'
+                                    : 'text-gray-700 hover:bg-gray-50'
+                                }`}
+                              >
+                                <span className="text-lg">{item.icon}</span>
+                                <span className="flex-1">{item.name}</span>
+                              </Link>
+                            ))}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   )}
                 </nav>
